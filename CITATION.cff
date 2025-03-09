@@ -1,0 +1,21 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: PULSE
+message: ' Performing Unification of OMOP and FHIR through LLM-based SQL Extraction'
+type: software
+authors:
+  - given-names: 'Francisco '
+    family-names: Lozano del Moral
+    email: franbloz98@gmail.com
+    affiliation: Universidad Politécnica de Madrid
+repository-code: 'https://github.com/Francloz/PULSE'
+abstract: >-
+  PULSE is an API that received queries from credentialed
+  users in natural language to an OMOP DB and returns the
+  result as a FHIR Resource.
+keywords:
+  - FHIR
+  - OMOP CDM
+license: Apache License Version 2.0
