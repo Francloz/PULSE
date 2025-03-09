@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='chat.css') }}"
+    />
+  </head>
+  <body>
+    <div class="chat-container">
+      <div class="chat-header">
+        <h1>Welcome, {{ username }}</h1>
+        <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+      </div>
+
+      <div class="chat-messages" id="chat-messages">
+        <div class="message bot">
+          <div class="message-content">
+            Hello {{ username }}! How can I help you today?
+          </div>
+        </div>
+        <!-- Messages will be added here by JavaScript -->
+      </div>
+
+      <div class="chat-input-container">
+        <form id="message-form" onsubmit="sendMessage(event)">
+          <input
+            type="text"
+            id="message-input"
+            placeholder="Type your message here..."
+            autocomplete="off"
+          />
+          <button type="submit">Send</button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      function sendMessage(event) {
+        event.preventDefault();
+        const input = document.getElementById('message-input');
+        const message = input.value.trim();
+
+        if (message) {
+          const messagesContainer = document.getElementById('chat-messages');
+
+          // Add user message
+          const userMessage = document.createElement('div');
+          userMessage.className = 'message user';
+          userMessage.innerHTML = `<div class="message-content">${message}</div>`;
+          messagesContainer.appendChild(userMessage);
+
+          // Clear input
+          input.value = '';
+
+          // Scroll to bottom
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+          // Simulate bot response (in a real app, this would be an API call)
+          setTimeout(() => {
+            const botMessage = document.createElement('div');
+            botMessage.className = 'message bot';
+            botMessage.innerHTML = `<div class="message-content">This is a simple demo. In a real app, this would be connected to a backend.</div>`;
+            messagesContainer.appendChild(botMessage);
+
+            // Scroll to bottom again after bot response
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          }, 1000);
+        }
+      }
+    </script>
+  </body>
+</html>

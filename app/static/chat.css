@@ -1,0 +1,123 @@
+:root {
+  --primary-color: #3498db;
+  --bot-message-color: #f0f2f5;
+  --user-message-color: #e1f5fe;
+  --text-color: #333;
+  --light-text: #666;
+}
+
+body {
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  background-color: var(--background-color);
+}
+
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-width: 800px;
+  margin: 0 auto;
+  background-color: var(--card-background);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--input-border);
+}
+
+.chat-header h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.logout-btn {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.logout-btn:hover {
+  text-decoration: underline;
+}
+
+.chat-messages {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.message {
+  display: flex;
+  max-width: 70%;
+}
+
+.message.bot {
+  align-self: flex-start;
+}
+
+.message.user {
+  align-self: flex-end;
+}
+
+.message-content {
+  padding: 12px 16px;
+  border-radius: 18px;
+  line-height: 1.4;
+}
+
+.bot .message-content {
+  background-color: var(--bot-message-color);
+}
+
+.user .message-content {
+  background-color: var(--user-message-color);
+}
+
+.chat-input-container {
+  padding: 16px 24px;
+  border-top: 1px solid var(--input-border);
+}
+
+.chat-input-container form {
+  display: flex;
+  gap: 12px;
+}
+
+.chat-input-container input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid var(--input-border);
+  border-radius: 24px;
+  font-size: 16px;
+}
+
+.chat-input-container button {
+  padding: 12px 24px;
+  border-radius: 24px;
+  font-weight: 500;
+}
+
+/* Alert styles for error messages */
+.alert {
+  padding: 12px;
+  margin-bottom: 16px;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.alert.error {
+  background-color: #ffebee;
+  color: #c62828;
+  border: 1px solid #ffcdd2;
+}

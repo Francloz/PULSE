@@ -1,17 +1,15 @@
-from keycloak import KeycloakAdmin, KeycloakOpenID, KeycloakOpenIDConnect
-from flask import Flask, request, jsonify
+from keycloak import KeycloakOpenID
+from flask import request, jsonify
 from functools import wraps
 import requests
 from jose import jwk
-from jose.utils import base64url_decode
-import pandas as pd
-import threading
-import config
+import app.src.config as config
 
 keycloak_openid = KeycloakOpenID(
-    server_url="http://localhost:8080",
+    server_url=config.KEYCLOAK_SERVER,
     client_id="example",
     client_secret_key="example_secret", # This sets up the connection to the client application
+    realm_name=config.REALM_NAME,
     verify=True
 )
 

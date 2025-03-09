@@ -1,10 +1,13 @@
-from flask import Flask, request, jsonify
-from auth import token_required, keycloak_openid
+from flask import jsonify
+
+from app.src.config import TEMPLATE_FOLDER, STATIC_FOLDER
+from app.src.auth import token_required, keycloak_openid
 from queries import *
+from flask import Flask, render_template, request
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from queries import add_query, add_satisfaction
-app = Flask(__name__)
+from app.src.queries import add_query, add_satisfaction
+app = Flask(__name__, template_folder=TEMPLATE_FOLDER, static_folder=STATIC_FOLDER)
 limiter = Limiter(
     get_remote_address,
     app=app,
@@ -12,8 +15,12 @@ limiter = Limiter(
     storage_uri="memory://",
 )
 
+@app.route(f'/')
+@limiter.limit("5 per minute")  # Limit to 5 requests per minute
+def home():
+    return render_template('index.html')
 
-@app.route(f'{config.APP_NAME}/login', methods=['POST'])
+@app.route(f'{config.APP_NAME}/submit', methods=['POST'])
 @limiter.limit("5 per minute")  # Limit to 5 requests per minute
 def login():
     """
@@ -25,10 +32,9 @@ def login():
 
     :return: JSON Response, Status Code
     """
-    data = request.get_json()
     try:
-        username = data.get("username")
-        password = data.get("password")
+        username = request.form['username']
+        password = request.form['password']
         try:
             token = keycloak_openid.token(username, password)
             return jsonify(token), 200
@@ -86,3 +92,7 @@ def request():
         return jsonify({'message': 'Feedback received'}), 200
     else:
         return jsonify({'error': 'Invalid input'}), 400
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
