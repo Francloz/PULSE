@@ -7,8 +7,7 @@ import app.src.config as config
 
 keycloak_openid = KeycloakOpenID(
     server_url=config.KEYCLOAK_SERVER,
-    client_id="example",
-    client_secret_key="example_secret", # This sets up the connection to the client application
+    client_id="myclient",
     realm_name=config.REALM_NAME,
     verify=True
 )
