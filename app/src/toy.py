@@ -1,7 +1,7 @@
 from flask import Flask
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 
-from app.src.config import TEMPLATE_FOLDER, STATIC_FOLDER
+from config import TEMPLATE_FOLDER, STATIC_FOLDER
 app = Flask(__name__, template_folder=TEMPLATE_FOLDER, static_folder=STATIC_FOLDER)
 app.secret_key = 'your_secret_key'  # Replace with a secure random secret key in production
 

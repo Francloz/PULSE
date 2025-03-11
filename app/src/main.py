@@ -1,13 +1,41 @@
 from flask import jsonify
 
-from app.src.config import TEMPLATE_FOLDER, STATIC_FOLDER
-from app.src.auth import token_required, keycloak_openid
+from src.config import TEMPLATE_FOLDER, STATIC_FOLDER
+from src.auth import token_required, keycloak_openid
 from queries import *
 from flask import Flask, render_template, request
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from app.src.queries import add_query, add_satisfaction
-app = Flask(__name__, template_folder=TEMPLATE_FOLDER, static_folder=STATIC_FOLDER)
+from src.queries import add_query, add_satisfaction
+from celery import Celery, Task
+
+def celery_init_app(app: Flask) -> Celery:
+    class FlaskTask(Task):
+        def __call__(self, *args: object, **kwargs: object) -> object:
+            with app.app_context():
+                return self.run(*args, **kwargs)
+
+    celery_app = Celery(app.name, task_cls=FlaskTask)
+    celery_app.config_from_object(app.config["CELERY"])
+    celery_app.set_default()
+    app.extensions["celery"] = celery_app
+    return celery_app
+
+def create_app() -> Flask:
+    app = Flask(__name__, template_folder=TEMPLATE_FOLDER, static_folder=STATIC_FOLDER)
+    app.config.from_mapping(
+        CELERY=dict(
+            broker_url="redis://localhost",
+            result_backend="redis://localhost",
+            task_ignore_result=True,
+        ),
+    )
+    app.config.from_prefixed_env()
+    celery_init_app(app)
+    return app
+
+app = create_app()
+
 limiter = Limiter(
     get_remote_address,
     app=app,
