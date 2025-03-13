@@ -1,12 +1,17 @@
+import os
+# Change the current working directory to be consistent with docker's
+script_dir = os.path.dirname(os.path.abspath(__file__))
+os.chdir(os.path.join(script_dir, "..", ".."))
+
 from flask import jsonify
 
-from src.config import TEMPLATE_FOLDER, STATIC_FOLDER
-from src.auth import token_required, keycloak_openid
+from config import TEMPLATE_FOLDER, STATIC_FOLDER
+from auth import token_required, keycloak_openid
 from queries import *
 from flask import Flask, render_template, request
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from src.queries import add_query, add_satisfaction
+from queries import add_query, add_satisfaction
 from celery import Celery, Task
 
 def celery_init_app(app: Flask) -> Celery:

@@ -1,7 +1,13 @@
+import os
+
+# Change the current working directory to be consistent with docker's
+script_dir = os.path.dirname(os.path.abspath(__file__))
+os.chdir(os.path.join(script_dir, "..", ".."))
+
 from flask import Flask
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 
-from config import TEMPLATE_FOLDER, STATIC_FOLDER
+from app.src.config import TEMPLATE_FOLDER, STATIC_FOLDER
 app = Flask(__name__, template_folder=TEMPLATE_FOLDER, static_folder=STATIC_FOLDER)
 app.secret_key = 'your_secret_key'  # Replace with a secure random secret key in production
 
@@ -32,6 +38,8 @@ def chat():
 def logout():
     session.clear()
     return redirect(url_for('home'))
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
