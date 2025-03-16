@@ -1,16 +1,36 @@
+import base64
+
 from keycloak import KeycloakOpenID
 from flask import request, jsonify
 from functools import wraps
 import requests
-from jose import jwk
+from jose import jwt
+import jose as jwk
 import app.src.config as config
+from jose import jwk
+
 
 keycloak_openid = KeycloakOpenID(
     server_url=config.KEYCLOAK_SERVER,
-    client_id="myclient",
+    client_id=config.CLIENT_ID,
     realm_name=config.REALM_NAME,
     verify=True
 )
+
+def verify_token(token):
+    # Introspect the token with client_id included
+    token_info = keycloak_openid.introspect(
+        token=token,
+        # client_id=config.CLIENT_ID  # Explicitly pass client_id
+    )
+
+    if token_info["active"]:
+        print("Token is valid.")
+        return True
+    else:
+        print("Token is invalid.")
+        return False
+
 
 def token_required(f):
     """
@@ -26,48 +46,12 @@ def token_required(f):
             return jsonify({"error": "Invalid authorization header"}), 401
 
         try:
-            public_key = get_publickey()
-            public_key = f"-----BEGIN PUBLIC KEY-----\n{public_key}\n-----END PUBLIC KEY-----"
             token = auth_header.split(" ")[0]
-            keycloak_openid.decode_token(
-                token=token,
-                key=public_key,
-                options={"verify_signature":True, "verify_aud":True, "exp":True}
+            decoded_token = keycloak_openid.decode_token(
+                token=token["access_token"]
             )
         except Exception as e:
             return jsonify({"error": "Invalid token"}), 401
         return f(*args, **kwargs)
     return decorated
-
-
-def get_publickey():
-    """
-    Get the public key of the keycloak realm.
-
-    :return: public key
-    """
-    # URL to retrieve the JWKS
-    jwks_url = f"{config.KEYCLOAK_SERVER}/realms/{config.REALM_NAME}/protocol/openid-connect/certs"
-
-    # Fetch the JWKS
-    response = requests.get(jwks_url)
-    jwks = response.json()
-
-    # The 'kid' value from the JWT header, which you need to match with one in the JWKS
-    jwt_kid = "your_jwt_kid_here"
-
-    # Find the correct key in the JWKS
-    key = None
-    for k in jwks['keys']:
-        if k['kid'] == jwt_kid:
-            key = k
-            break
-
-    if key:
-        # Extract the RSA public key
-        public_key = jwk.construct(key)
-        print(public_key)
-        return public_key
-    else:
-        raise FileNotFoundError("Public key not found")
 

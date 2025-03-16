@@ -8,7 +8,7 @@ KEYCLOAK_SERVER = "http://localhost:8080"
 REALM_NAME = "myrealm"
 TEMPLATE_FOLDER = os.path.join(BASE_DIR, '..', 'templates')
 STATIC_FOLDER = os.path.join(BASE_DIR, '..', 'static')
-
+CLIENT_ID = "myclient"
 # Ensure the directory exists
 os.makedirs(DATA_DIR, exist_ok=True)
 
