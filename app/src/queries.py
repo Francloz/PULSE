@@ -25,7 +25,7 @@ def get_query_db_connection():
 
     :return: sqlite3 connection
     """
-    conn = sqlite3.connect(config.DATABASE_PATH, check_same_thread=False)
+    conn = sqlite3.connect(config.LOCAL_DATABASE_PATH, check_same_thread=False)
     return conn
 
 def create_query_table():

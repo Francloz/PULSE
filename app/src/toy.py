@@ -7,8 +7,8 @@ os.chdir(os.path.join(script_dir, "..", ".."))
 from flask import Flask
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 
-from app.src.config import TEMPLATE_FOLDER, STATIC_FOLDER
-app = Flask(__name__, template_folder=TEMPLATE_FOLDER, static_folder=STATIC_FOLDER)
+from app.src.config import TEMPLATE_DIR, STATIC_DIR
+app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
 app.secret_key = 'your_secret_key'  # Replace with a secure random secret key in production
 
 @app.route('/')

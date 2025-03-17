@@ -5,7 +5,7 @@ os.chdir(os.path.join(script_dir, "..", ".."))
 
 from flask import jsonify
 
-from config import TEMPLATE_FOLDER, STATIC_FOLDER
+from config import TEMPLATE_DIR, STATIC_DIR
 from auth import token_required, keycloak_openid
 from queries import *
 from flask import Flask, render_template, request
@@ -27,7 +27,7 @@ def celery_init_app(app: Flask) -> Celery:
     return celery_app
 
 def create_app() -> Flask:
-    app = Flask(__name__, template_folder=TEMPLATE_FOLDER, static_folder=STATIC_FOLDER)
+    app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
     app.config.from_mapping(
         CELERY=dict(
             broker_url="redis://localhost",
