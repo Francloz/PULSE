@@ -9,6 +9,17 @@ REALM_NAME = "myrealm"
 TEMPLATE_FOLDER = os.path.join(BASE_DIR, '..', 'templates')
 STATIC_FOLDER = os.path.join(BASE_DIR, '..', 'static')
 CLIENT_ID = "myclient"
+OMOP_DOCS_PATH = "placeholder"
+
+OMOP_DB_PARAMS = {
+    "dbname": os.getenv("DB_NAME"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+    "host": os.getenv("DB_HOST"),
+    "port": os.getenv("DB_PORT", "5432")  # Default to 5432 if not set
+}
+
+
 # Ensure the directory exists
 os.makedirs(DATA_DIR, exist_ok=True)
 
