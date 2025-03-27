@@ -1,4 +1,6 @@
-from crewai import Agent, Task, Crew
+from typing import Any, List
+
+from crewai import Agent, Task, Crew, Process
 
 """
 Notes on agents from docs.crewai.com
@@ -74,7 +76,7 @@ class QueryDecomposer(Agent):
 
 
 class DatabaseChecker(Agent):
-    def __init__(self, backstory=None):
+    def __init__(self, backstory: str=None):
         if backstory is None:
             backstory = ("As a seasoned data engineer who has guided multiple clinical trials using the OMOP common "
                          "data model for statistical analysis, when a colleague gives a detailed implementation plan for"
@@ -84,3 +86,31 @@ class DatabaseChecker(Agent):
                          goal="Craft detailed plans to write SQL queries for OMOP databases",
                          backstory=backstory,
                          tools=[])
+
+class Text2SQLCrew(Crew):
+    def __init__(self, agents: List[Agent], tasks: List[Task], /, **data: Any):
+        super().__init__(agents=agents,
+                         tasks=tasks,
+                         process=Process.sequential,
+                         **data)
+
+class CompleteQuery(Task):
+    def __init__(self, agent, /, **data: Any):
+        super().__init__(description="Request information necessary to correctly translate the natural language query"
+                                     "into a SQL query for an OMOP database",
+                         expected_output="Clear information request",
+                         agent=agent,
+                         **data)
+
+
+def get_text2sql_crew(has_completionist=False):
+    agents = []
+    tasks = []
+
+    if has_completionist:
+        completionist = InformationCompletionist()
+        completionist_task = CompleteQuery(completionist)
+        agents.append(completionist)
+        tasks.append(completionist_task)
+
+    return Crew(agents=agents, tasks=tasks, process=Process.sequential)

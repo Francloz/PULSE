@@ -23,7 +23,7 @@ CLIENT_SECRET = KEYCLOAK_PARAMS["client_secret"]
 
 
 
-OMOP_DOCS_PATH = "placeholder"
+OMOP_DOCS_PATH = "placeholder" # maybe this https://ohdsi.github.io/CommonDataModel/cdm54.html
 OMOP_DB_PARAMS = {
     "dbname": os.getenv("DB_NAME"),
     "user": os.getenv("DB_USER"),
@@ -40,3 +40,9 @@ os.makedirs(DATA_DIR, exist_ok=True)
 if not os.path.exists(LOCAL_DATABASE_PATH):
     with open(LOCAL_DATABASE_PATH, 'w'):
         pass  # Creates an empty file
+
+
+NUM_SYNTHETIC_DB = 0
+NUM_CONSISTENCY_REPLICATES = 1
+ON_SQL_TEST_FAILURE = "SKIP"
+CONTEXT_LIMIT = 1000

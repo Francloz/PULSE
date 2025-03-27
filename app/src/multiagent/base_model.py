@@ -1,4 +1,4 @@
 
 
-class BaseModel:
+class BaseLLMModel:
     pass
