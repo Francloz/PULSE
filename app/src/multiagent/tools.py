@@ -13,6 +13,9 @@ class MyToolInput(BaseModel):
     argument: str = Field(..., description="Description of the argument.")
 
 class ColumnExamplesOMOP(BaseTool):
+    """
+    This function is meant to be a tool with the purpose of RAG for an OMOP db to get possible column values.
+    """
     name: str = "Name of my tool"
     description: str = "Given a list of pairs of table:column in the OMOP database, it returns examples found in each column"
     args_schema: Type[BaseModel] = MyToolInput
@@ -20,9 +23,20 @@ class ColumnExamplesOMOP(BaseTool):
 
     @staticmethod
     def get_table_col_pairs(text):
+        """
+        Free text output of the LLM to tables and columns.
+
+        :param text: string representing what tables and columns they want
+        :return:
+        """
         return []
 
     def _run(self, argument: str) -> str:
+        """
+        Runs the queries to get examples of the values that can be found in those tables and columns.
+        :param argument: free text of the tables and columns requested
+        :return:
+        """
         total_result = ""
         for table, column in self.get_table_col_pairs(argument):
             query = f"SELECT DISTINCT {column} FROM {table} LIMIT {self.limit}"
@@ -41,6 +55,10 @@ class ColumnExamplesOMOP(BaseTool):
 
 @tool
 def recheck_omop_tool():
+    """
+    Tool wrapper for a RAG of the OMOP CDM documentation
+    :return: documentation
+    """
     rag_tool = RagTool()
     rag_tool.add(data_type="web_page", path=OMOP_DOCS_PATH)
     return rag_tool
