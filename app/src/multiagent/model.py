@@ -1,7 +1,9 @@
 from crewai import LLM
 
+import config
 
-def get_llm(model="gemma3:1b"):
+
+def get_llm(model=config.MODEL_NAME):
     return LLM(
         model="ollama/" + model,  # Model name (without :1b unless needed)
         base_url="http://localhost:11434",  # Ollama's API URL
@@ -14,11 +16,11 @@ if __name__ == "__main__":
     import subprocess
 
     model = "gemma3:1b"
-    subprocess.run(["ollama", "pull", model], check=True)
-
-    model_process = subprocess.Popen(["ollama", "run", model],
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE)
+    # subprocess.run(["ollama", "pull", model], check=True)
+    #
+    # model_process = subprocess.Popen(["ollama", "run", model],
+    #                                  stdout=subprocess.PIPE,
+    #                                  stderr=subprocess.PIPE)
 
     from crewai import Agent, Task, Crew, Process, LLM
     from crewai.project import CrewBase, agent, task, crew
@@ -28,14 +30,14 @@ if __name__ == "__main__":
         "pirate": {
             "role": "Pirate",
             "goal": "Answer the question 'What is the color of the sky?' in true pirate style.",
-            "backstory": "Arrr! Ye be a salty pirate, with a voice as rough as the seven seas, ready to share yer wisdom!"
+            "backstory": "You are a typical pirate who likes to talk in the mast of a ship and drink rum."
         }
     }
     # Task configuration to ask the question.
     tasks_config = {
         "sky_task": {
             "description": "What be the color of the sky?",
-            "expected_output": "blue"  # Expected answer can be adjusted if needed.
+            "expected_output": "A description of the sky"  # Expected answer can be adjusted if needed.
         }
     }
 
@@ -89,4 +91,4 @@ if __name__ == "__main__":
     result = crew_instance.crew().kickoff(inputs={})
     print("CrewAI Output:", result)
 
-    model_process.terminate()
+    # model_process.terminate()

@@ -23,7 +23,7 @@ CLIENT_SECRET = KEYCLOAK_PARAMS["client_secret"]
 
 
 
-OMOP_DOCS_PATH = "placeholder" # maybe this https://ohdsi.github.io/CommonDataModel/cdm54.html
+OMOP_DOCS_PATH = "https://ohdsi.github.io/CommonDataModel/cdm54.html" # maybe this https://ohdsi.github.io/CommonDataModel/cdm54.html
 OMOP_DB_PARAMS = {
     "dbname": os.getenv("DB_NAME"),
     "user": os.getenv("DB_USER"),
@@ -46,3 +46,4 @@ NUM_SYNTHETIC_DB = 0
 NUM_CONSISTENCY_REPLICATES = 1
 ON_SQL_TEST_FAILURE = "SKIP"
 CONTEXT_LIMIT = 1000
+MODEL_NAME = "gemma3:4b"

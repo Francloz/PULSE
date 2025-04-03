@@ -25,5 +25,14 @@ Go to http://localhost:8080 and log in using the credentials for the admin found
 
 Import the realm settings in the /keycloak/realm-export.json and  create a dummy user for the realm.
 
+### Check the LLM is running 
+Make sure that [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#installation) is installed
+```bash
+$ docker run -d --gpus=all -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
+$ docker exec -it ollama ollama pull gemma3:1b
+```
+
+
+
 ## Releases
 There are currently no releases available.

@@ -6,7 +6,7 @@ from crewai_tools import RagTool
 from pydantic import BaseModel, Field
 import psycopg2
 
-from ..config import OMOP_DB_PARAMS, OMOP_DOCS_PATH
+from config import OMOP_DB_PARAMS, OMOP_DOCS_PATH
 
 class MyToolInput(BaseModel):
     """Input schema for MyCustomTool."""
@@ -53,6 +53,7 @@ class ColumnExamplesOMOP(BaseTool):
                 return f"Error querying {column} of {table}"
         return total_result[:-1]
 
+
 @tool
 def recheck_omop_tool():
     """
@@ -60,7 +61,7 @@ def recheck_omop_tool():
     :return: documentation
     """
     rag_tool = RagTool()
-    rag_tool.add(data_type="web_page", path=OMOP_DOCS_PATH)
+    rag_tool.add(data_type="web_page", url=OMOP_DOCS_PATH)
     return rag_tool
 
 

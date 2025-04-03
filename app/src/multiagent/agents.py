@@ -1,6 +1,12 @@
 from typing import Any, List
 
 from crewai import Agent, Task, Crew, Process
+from crewai.project import CrewBase, agent, task, crew, before_kickoff, after_kickoff
+from crewai_tools.tools.website_search.website_search_tool import WebsiteSearchTool
+
+import config
+from multiagent.model import get_llm
+from multiagent.tools import recheck_omop_tool
 
 """
 Notes on agents from docs.crewai.com
@@ -24,19 +30,38 @@ Specialists Over Generalists
 Agents perform significantly better when given specialized roles rather than general ones. A highly focused agent delivers more precise, relevant outputs:
 """
 
-class InformationCompletionist(Agent):
-    def __init__(self, backstory=None):
-        if backstory is None:
-            backstory = ("As a seasoned data engineer who has guided multiple clinical trials using the OMOP common "
-                         "data model for statistical analysis, when a clinician requests data you know what information"
-                         "is incomplete for the queries they asked for in a methodical and careful manner in order to "
-                         "preemptively solve ambiguities that might arise when crafting queries for the database")
-        super().__init__(role="Request any information required to translate medical queries for cohort analysis to structured queries",
-                         goal="Obtain clear and concise information that complements a stated data query to allow "
-                              "crafting correct and precise structured queries on OMOP CDM"
-                              " unambiguous and correct",
-                         backstory=backstory,
-                         allow_delegation=False)
+@CrewBase
+class CompletionCrew:
+    agents_config = "config/completionist/agents.yaml"
+    tasks_config = "config/completionist/tasks.yaml"
+
+    @agent
+    def information_completionist(self) -> Agent:
+        return Agent(
+            config=self.agents_config["information_completionist"],
+            memory=True,
+            verbose=False,
+            llm=get_llm()
+        )
+
+    @task
+    def complete_information(self) -> Task:
+        return Task(
+            description="Completion crew",
+            expected_output="",
+            agent=self.information_completionist(),
+        )
+
+    @crew
+    def crew(self) -> Crew:
+        return Crew(
+            agents=self.agents,
+            tasks=self.tasks,
+            process=Process.sequential,
+            # knowledge_sources=[recheck_omop_tool],
+            verbose=False,
+        )
+
 
 
 class InformationInquiryCrafter(Agent):
@@ -103,14 +128,22 @@ class CompleteQuery(Task):
                          **data)
 
 
-def get_text2sql_crew(has_completionist=False):
-    agents = []
-    tasks = []
+# def get_text2sql_crew(has_completionist=False):
+#     agents = []
+#     tasks = []
+#
+#     if has_completionist:
+#         completionist = InformationCompletionist()
+#         completionist_task = CompleteQuery(completionist)
+#         agents.append(completionist)
+#         tasks.append(completionist_task)
+#
+#     return Crew(agents=agents, tasks=tasks, process=Process.sequential)
 
-    if has_completionist:
-        completionist = InformationCompletionist()
-        completionist_task = CompleteQuery(completionist)
-        agents.append(completionist)
-        tasks.append(completionist_task)
 
-    return Crew(agents=agents, tasks=tasks, process=Process.sequential)
+
+if __name__ == "__main__":
+    input_data = "What is the average age of all existing patients?"
+    crew = CompletionCrew().crew()
+    result = crew.kickoff(inputs={'query': input_data})
+    print(result)

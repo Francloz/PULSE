@@ -1,10 +1,10 @@
 import os
+
 # Change the current working directory to be consistent with docker's
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(os.path.join(script_dir, "..", ".."))
 
 from flask import jsonify
-
 from config import TEMPLATE_DIR, STATIC_DIR
 from auth import token_required, keycloak_openid
 from queries import *
@@ -13,6 +13,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from queries import add_query, add_satisfaction
 from celery import Celery, Task
+
 
 def celery_init_app(app: Flask) -> Celery:
     class FlaskTask(Task):
@@ -25,6 +26,7 @@ def celery_init_app(app: Flask) -> Celery:
     celery_app.set_default()
     app.extensions["celery"] = celery_app
     return celery_app
+
 
 def create_app() -> Flask:
     app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
@@ -39,6 +41,7 @@ def create_app() -> Flask:
     celery_init_app(app)
     return app
 
+
 app = create_app()
 
 limiter = Limiter(
@@ -48,10 +51,12 @@ limiter = Limiter(
     storage_uri="memory://",
 )
 
+
 @app.route(f'/')
 @limiter.limit("5 per minute")  # Limit to 5 requests per minute
 def home():
     return render_template('index.html')
+
 
 @app.route(f'{config.APP_NAME}/submit', methods=['POST'])
 @limiter.limit("5 per minute")  # Limit to 5 requests per minute
