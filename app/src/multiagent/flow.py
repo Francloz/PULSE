@@ -59,11 +59,11 @@ class QueryState(BaseModel):
         temp_views (List[str]): temporary views that can be assumed to contain the DB TODO refine this further
         consistent_sql (str): the most consistent sql query translation
     """
-    query: str
-    sql_alternatives: List[str]
-    exec_results: List[ExecutionResult]
-    expected_results: List[str]
-    valid_sql_alternatives: List[str]
+    query: str = ""
+    sql_alternatives: List[str] = field(default_factory=list)
+    exec_results: List[ExecutionResult] = field(default_factory=list)
+    expected_results: List[str] = field(default_factory=list)
+    valid_sql_alternatives: List[str] = field(default_factory=list)
     random_tables: List[DatabaseConfig] = field(default_factory=list)
     similar_examples: List[Tuple[str, str]] = field(default_factory=list)
     temp_views: List[str] = field(default_factory=list)
@@ -162,8 +162,8 @@ class Text2SQLFlow(Flow[TaskState]):
     """
     Flow of the task of NL to SQL query.
     """
-
-    complete_info_prompt =  ("As a seasoned data engineer who has guided multiple clinical trials using the OMOP common data model for statistical analysis, "
+    basic_background = "As a seasoned data engineer who has guided multiple clinical trials using the OMOP common data model for statistical analysis"
+    complete_info_prompt =  (f"{basic_background}, "
                              "when a clinician requests data you know what information is incomplete for the queries they asked for in a methodical and careful "
                             "manner in order to preemptively solve ambiguities that might arise when crafting queries for the database. "
                             "\n---------\n"
@@ -173,13 +173,22 @@ class Text2SQLFlow(Flow[TaskState]):
                             "[{{'question': question, 'reason': reason}},...]"
                              "\nEscape strings as necessary for correct formatting."
                              "\nIf no questions are very essential, give an empty list [].")
-    rewrite_query = (
-        "As a seasoned data engineer who has guided multiple clinical trials using the OMOP common data model for statistical analysis, when given a OMOP CDM database query in natural language, "
+    rewrite_query_prompt = (
+        f"{basic_background}, when given a OMOP CDM database query in natural language, "
         "you can further refine it in a precise and methodical manner."
         "\n---------\n"
         "Given this query: '{initial_inquiry}' and this complementary information to decrease ambiguity {information}."
         "\nExplain in free text the query so that I can translate it to SQL. Do it in a way that is unambiguous and clear. "
         "\nGive it using the following format: <<< Rewritten query: <query> >>>")
+
+    decomposition_prompt = (
+        f"{basic_background}, when given a OMOP CDM database query in natural language, "
+        "you know what steps would be required to translate the query to SQL."
+        "\n---------\n"
+        "Given this query: '{initial_inquiry}', give all the steps of sub-queries that are required to perform the query."
+        "\nUse the following format for each step: "
+        "\n<number>: <description of the step in free text>"
+        "\n<number>: <description of the step in free text>")
 
     def __init__(self, username: str, initial_inquiry: str, debug: bool = False, **kwargs: Any):
         super().__init__(**kwargs)
@@ -263,7 +272,7 @@ class Text2SQLFlow(Flow[TaskState]):
 
             # Request the query be rewritten so that it is unambiguous
             llm = get_llm()
-            prompt = self.rewrite_query.format(initial_inquiry=self.state.initial_inquiry, information=q2r_text)
+            prompt = self.rewrite_query_prompt.format(initial_inquiry=self.state.initial_inquiry, information=q2r_text)
             response = llm.call(
                 prompt
             )
@@ -272,7 +281,6 @@ class Text2SQLFlow(Flow[TaskState]):
             match = re.search(r'<<\s*Rewritten query:\s*(.*?)\s*>>', response)
             if match:
                 extracted_text = match.group(1)
-                print("Extracted Text:", extracted_text)
             else:
                 extracted_text = "Error"
 
@@ -295,7 +303,23 @@ class Text2SQLFlow(Flow[TaskState]):
 
         :return: string of the results
         """
-        # TODO Ask the LLM to decompose the SQL query into steps
+        llm = get_llm()
+        prompt = self.decomposition_prompt.format(initial_inquiry=self.state.completed_inquiry)
+        response = llm.call(
+            prompt
+        )
+
+        steps = re.findall(r'^\d+:\s*(.+)$', response, flags=re.MULTILINE)
+
+        if self.debug:
+            print(prompt)
+            print(response)
+            print(steps)
+        self.state.decomposed_queries = []
+        for step in steps:
+            subquery = QueryState()
+            subquery.query = step
+            self.state.decomposed_queries.append(subquery)
         return "Query decomposed"
 
     @listen(decompose_query)
@@ -374,19 +398,3 @@ class Text2SQLFlow(Flow[TaskState]):
 if __name__ == "__main__":
     flow_instance = Text2SQLFlow(username="Paco", initial_inquiry="Average age of all patients")
     flow_instance.kickoff()
-
-
-    # llm = get_llm()
-    # query = "'Average age of patients'"
-    # response = llm.call(
-    #     "As a seasoned data engineer who has guided multiple clinical trials using the OMOP common data model for statistical analysis, "
-    #     "when a clinician requests data you know what information is incomplete for the queries they asked for in a methodical and careful "
-    #     "manner in order to preemptively solve ambiguities that might arise when crafting queries for the database. "
-    #     "Make any reasonable assumption understanding that the clinician has tried to be clear."
-    #     "\n"
-    #     f"Is this query from a knowledgeable clinician sufficiently complete? Query: {query}"
-    #     f"\n"
-    #     f"Give a list of questions the clinician should clarify. Explain the necessity of each of them. Do it using the format:"
-    #     "{'question': question, 'reason': reason}"
-    # )
-    # print(response)
