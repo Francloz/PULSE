@@ -8,6 +8,10 @@ from multiagent.model import get_llm
 import re
 import json
 import ast
+import sqlglot
+from sqlglot import parse_one, exp
+from sqlglot.optimizer.qualify import qualify
+
 
 # @dataclass
 class DatabaseConfig(BaseModel):
@@ -21,13 +25,15 @@ class DatabaseConfig(BaseModel):
     name: str
     uri: str
 
+
 # @dataclass
 class ExecutionEnum(IntEnum):
     """
     This class represents an enumeration of types of possible outcomes of a SQL code execution.
     """
-    error = -1 # Indicates an execution error
-    valid = 0 # Indicates a valid execution
+    error = -1  # Indicates an execution error
+    valid = 0  # Indicates a valid execution
+
 
 # @dataclass
 class ExecutionResult(BaseModel):
@@ -40,6 +46,7 @@ class ExecutionResult(BaseModel):
     """
     status: ExecutionEnum
     result: str
+
 
 # @dataclass
 class QueryState(BaseModel):
@@ -54,7 +61,7 @@ class QueryState(BaseModel):
         exec_results (List[ExecutionResult]): execution results
         expected_results (List[str]): expected results
         valid_sql_alternatives (List[str]): valid sql alternatives
-        random_tables (List[DatabaseConfig]): random tables to test the queries on
+        random_databases (List[DatabaseConfig]): random tables to test the queries on
         similar_examples (List[Tuple[str, str]]): similar examples for few-shot prompting
         temp_views (List[str]): temporary views that can be assumed to contain the DB TODO refine this further
         consistent_sql (str): the most consistent sql query translation
@@ -64,10 +71,11 @@ class QueryState(BaseModel):
     exec_results: List[ExecutionResult] = field(default_factory=list)
     expected_results: List[str] = field(default_factory=list)
     valid_sql_alternatives: List[str] = field(default_factory=list)
-    random_tables: List[DatabaseConfig] = field(default_factory=list)
+    random_databases: List[DatabaseConfig] = field(default_factory=list)
     similar_examples: List[Tuple[str, str]] = field(default_factory=list)
     temp_views: List[str] = field(default_factory=list)
     consistent_sql: str = ""
+
 
 # @dataclass
 class TaskState(BaseModel):
@@ -91,10 +99,8 @@ class TaskState(BaseModel):
 
     tables_and_columns: Dict[str, str] = field(default_factory=dict)
     decomposed_queries: List[QueryState] = field(default_factory=list)
-    step:int = 0
-    total_sql:str = ""
-
-
+    step: int = 0
+    total_sql: str = ""
 
 
 def extract_qa_pairs(text_data, alt="reason"):
@@ -120,7 +126,7 @@ def extract_qa_pairs(text_data, alt="reason"):
             return []
 
         # Extract the substring that contains the list
-        list_substring = text_data[start_index : end_index + 1]
+        list_substring = text_data[start_index: end_index + 1]
 
     except Exception as e:
         print(f"Error finding list structure: {e}")
@@ -158,46 +164,151 @@ def extract_qa_pairs(text_data, alt="reason"):
     return qa_pairs
 
 
+def create_database(tables: Dict[str, List[str]]) -> DatabaseConfig:
+    """
+    Create a synthetic database of OMOP CDM restricted to only the tables in 'tables' and the columns
+    :param tables: Map from tables to the columns inside them that are used
+    :return: database connection configuration
+    """
+    # TODO Generate simple synthetic databases
+    pass
+
+
+def extract_schema(node):
+    """
+    Recursively extract a mapping of table/alias to set of columns used.
+    :param node: glotsql node
+    :return: mapping table to columns without temporary views
+    """
+    schema_mapping = {}
+
+    # Process columns in the current node
+    for col in node.find_all(exp.Column):
+        table = col.table or "unknown"
+        schema_mapping.setdefault(table, set()).add(col.name)
+
+    # Process any CTEs (temporary views) in the current node
+    with_clause = node.args.get("with")
+    if with_clause:
+        for cte in with_clause.expressions:
+            cte_name = cte.alias_or_name
+            del schema_mapping[cte_name]
+
+    return schema_mapping
+
+
+def get_necessary_tables_and_columns(sql_alternatives: List[str]) -> Dict[str, List[str]]:
+    """
+    Extracts from a list of SQL code excerpt the tables and columns used in the queries
+    :param sql_alternatives: list of SQL alternatives
+    :return: dictionary from tables used to columns used within each table
+    """
+    table2column: Dict[str, Any] = {}
+
+    for query in sql_alternatives:
+        # Parse the SQL query.
+        parsed = parse_one(query)
+        qualified = qualify(parsed, dialect="postgres", schema=config.OMOP_SCHEMA)
+
+        mapping = extract_schema(qualified)
+        for table, cols in mapping.items():
+            if table in table2column:
+                table2column[table].update(cols)
+            else:
+                table2column[table] = cols
+
+    table2column = {table: list(cols) for table, cols in table2column.items()}
+    return table2column
+
+
+def database2str(database: DatabaseConfig) -> str:
+    """
+    Creates the string representation of the database
+    :param database: database configuration
+    :return:
+    """
+    # TODO Everything
+    pass
+
+
 class Text2SQLFlow(Flow[TaskState]):
     """
     Flow of the task of NL to SQL query.
     """
-    basic_background = "As a seasoned data engineer who has guided multiple clinical trials using the OMOP common data model for statistical analysis"
-    complete_info_prompt =  (f"{basic_background}, "
-                             "when a clinician requests data you know what information is incomplete for the queries they asked for in a methodical and careful "
-                            "manner in order to preemptively solve ambiguities that might arise when crafting queries for the database. "
+    basic_background = ("As a seasoned data engineer who has guided multiple clinical trials using the OMOP common "
+                        "data model for statistical analysis")
+    complete_info_prompt = (f"{basic_background}, "
+                            "when a clinician requests data you know what information is incomplete for the queries "
+                            "they asked for in a methodical and careful"
+                            "manner in order to preemptively solve ambiguities that might arise when crafting queries "
+                            "for the database."
                             "\n---------\n"
-                            "Is this query from a knowledgeable clinician sufficiently complete? Query: {initial_inquiry}. "
-                             "Make any reasonable assumption understanding that the clinician has tried to be clear."
-                            "\nIf it is very essential, give a list of questions the clinician should clarify. Explain the necessity of each of them. Do it using JSON format:"
+                            "Is this query from a knowledgeable clinician sufficiently complete? Query: {"
+                            "initial_inquiry}."
+                            "Make any reasonable assumption understanding that the clinician has tried to be clear."
+                            "\nIf it is very essential, give a list of questions the clinician should clarify. "
+                            "Explain the necessity of each of them. Do it using JSON format:"
                             "[{{'question': question, 'reason': reason}},...]"
-                             "\nEscape strings as necessary for correct formatting."
-                             "\nIf no questions are very essential, give an empty list [].")
+                            "\nEscape strings as necessary for correct formatting."
+                            "\nIf no questions are very essential, give an empty list [].")
     rewrite_query_prompt = (
         f"{basic_background}, when given a OMOP CDM database query in natural language, "
         "you can further refine it in a precise and methodical manner."
         "\n---------\n"
         "Given this query: '{initial_inquiry}' and this complementary information to decrease ambiguity {information}."
-        "\nExplain in free text the query so that I can translate it to SQL. Do it in a way that is unambiguous and clear. "
+        "\nExplain in free text the query so that I can translate it to SQL. Do it in a way that is unambiguous and "
+        "clear."
         "\nGive it using the following format: <<< Rewritten query: <query> >>>")
 
     decomposition_prompt = (
         f"{basic_background}, when given a OMOP CDM database query in natural language, "
         "you know what steps would be required to translate the query to SQL."
         "\n---------\n"
-        "Given this query: '{initial_inquiry}', give all the steps of sub-queries that are required to perform the query."
+        "Given this query: '{initial_inquiry}', give all the steps of sub-queries that are required to perform the "
+        "query."
         "\nUse the following format for each step: "
         "\n<number>: <description of the step in free text>"
         "\n<number>: <description of the step in free text>")
 
+    translation_prompt = (
+        f"{basic_background}, when given a OMOP CDM database query in natural language, "
+        "you know how to translate it to SQL."
+        "\n---------\n"
+        "Given this query: '{query}', and these temporary views '{views}', translate the query to SQL."
+        "\nUse the following format: "
+        "\n---------"
+        "\n```SQL "
+        "\nCREATE VIEW <view_name> AS <SQL code>"
+        "\n```")
+
+    test_db_prompt = (
+        f"{basic_background}, when given a OMOP CDM database query in natural language, "
+        "you know how to translate it to SQL."
+        "\n---------\n"
+        "Given this query: '{query}', and these temporary views '{views}', translate the query to SQL."
+        "\nWhat is the correct result of the query on this database?"
+        "\n{database}"
+        "\n---------"
+        "\nUse the following format: "
+        "\n|col name 1|col name 2|col name 3|..."
+        "\n|row1 value 1|row1 value 2|row1 value 3|..."
+        "\n|row2 value 1|row2 value 2|row2 value 3|...")
+
     def __init__(self, username: str, initial_inquiry: str, debug: bool = False, **kwargs: Any):
+        """
+        Initializes the flow with the necessary data that is specific to this flow.
+        :param username: name of the user, to refer to them by name
+        :param initial_inquiry: initial natural language inquiry sent by the user
+        :param debug: whether to show debug prints
+        :param kwargs: other kwargs of CrewAI's Flow
+        """
         super().__init__(**kwargs)
         self.state.user_name = username
         self.state.initial_inquiry = initial_inquiry
         self.debug = debug
 
     @start()
-    def initialize_data(self):
+    def initialize_data(self) -> str:
         """
         Initialization of the flow.
         :return: string of the result
@@ -223,19 +334,18 @@ class Text2SQLFlow(Flow[TaskState]):
         )
         q2r = extract_qa_pairs(response)  # questions and reasons
 
-
         if self.debug:
             print(prompt)
             print(response)
             print(q2r)
 
-        if len(q2r) == 0: # If there are no questions, just continue
+        if len(q2r) == 0:  # If there are no questions, just continue
             self.state.completed_inquiry = self.state.initial_inquiry
-        else: # If there are questions, solve the ambiguities
+        else:  # If there are questions, solve the ambiguities
             # TODO Change this part to ask user for the information ----------------------------------------------------
             # This is a placeholder for actually asking the user.
             output_lines = []
-            for idx, (q,a) in enumerate(q2r, start=1):
+            for idx, (q, a) in enumerate(q2r, start=1):
                 output_lines.append(f"{idx}. Question: {q}\n   Reason: {a}")
             q2r_text = "\n".join(output_lines)
             llm = get_llm()
@@ -322,7 +432,7 @@ class Text2SQLFlow(Flow[TaskState]):
             self.state.decomposed_queries.append(subquery)
         return "Query decomposed"
 
-    @listen(decompose_query)
+    @listen(or_(decompose_query, "Alternatives consolidated"))
     def prepare_alternatives(self):
         """
         Attempts to prepare several SQL alternatives and a batch of synthetic databases that can be used to test the
@@ -330,9 +440,40 @@ class Text2SQLFlow(Flow[TaskState]):
 
         :return: string of the results
         """
-        # TODO Ask the LLM to generate SQL translations
-        # TODO Generate simple synthetic databases
-        # TODO Ask the LLM to generate the expected results of the query on the synthetic databases
+        if self.state.step == len(self.state.decomposed_queries):
+            return "All steps finished"
+
+        current_query = self.state.decomposed_queries[self.state.step].query
+
+        alternatives = self.state.decomposed_queries[self.state.step].sql_alternatives
+        prompt = self.translation_prompt.format(query=current_query, views="None")
+
+        for alt in range(config.NUM_CONSISTENCY_REPLICATES):
+            llm = get_llm(temperature=0.05)
+            response = llm.call(prompt)
+
+            match = re.search(r"```SQL\s*(.*?)\s*```", response, re.DOTALL | re.IGNORECASE)
+            sql_code = None
+            if match:
+                sql_code = match.group(1)
+                alternatives.append(sql_code)
+
+            if self.debug:
+                print(prompt)
+                print("Extracted SQL code:")
+                print(sql_code)
+
+        databases = self.state.decomposed_queries[self.state.step].random_databases
+        tables = get_necessary_tables_and_columns(self.state.decomposed_queries[self.state.step].sql_alternatives)
+
+        for _ in range(config.NUM_SYNTHETIC_DB):
+            database = create_database(tables)
+            databases.append(database)
+
+        for database in databases:
+            database_str = database2str(database)
+            # TODO Ask the LLM to generate the expected results of the query on the synthetic databases
+
         return "Alternatives prepared"
 
     @listen(prepare_alternatives)
@@ -365,7 +506,7 @@ class Text2SQLFlow(Flow[TaskState]):
             self.state.step += 1
         return "Alternatives consolidated"
 
-    @listen("Alternatives consolidated")
+    @listen("All steps finished")
     def compose(self):
         """
         Composes the query using the sub-queries.
@@ -381,7 +522,7 @@ class Text2SQLFlow(Flow[TaskState]):
 
         :return: string of result
         """
-        return "Last result"
+        return self.state.total_sql
 
     @listen("Error")
     def error(self):
@@ -390,9 +531,8 @@ class Text2SQLFlow(Flow[TaskState]):
 
         :return: string of result
         """
-        pass # TODO Tell the user the error
-
-
+        # TODO Tell the user the error
+        pass
 
 
 if __name__ == "__main__":

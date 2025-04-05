@@ -1,5 +1,5 @@
 import os
-
+import sys
 # Change the current working directory to be consistent with docker's
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(os.path.join(script_dir, "..", ".."))
@@ -52,7 +52,7 @@ limiter = Limiter(
 )
 
 
-@app.route(f'/')
+@app.route(f'{config.APP_NAME}/')
 @limiter.limit("5 per minute")  # Limit to 5 requests per minute
 def home():
     return render_template('index.html')
@@ -71,20 +71,23 @@ def login():
     :return: JSON Response, Status Code
     """
     try:
-        username = request.form['username']
-        password = request.form['password']
+        data = request.get_json()
+        username = data['username']
+        password = data['password']
         try:
+            print(username, password, file=sys.stderr)
             token = keycloak_openid.token(username, password)
             return jsonify(token), 200
         except Exception as e:
             return jsonify({"error": "Invalid credentials"}), 401
     except Exception as e:
-        return jsonify({"error": "Expected username and password credentials"}), 400
+        print(request.get_json(), file=sys.stderr)
+        return jsonify({"error": f"Expected username and password credentials instead of {request.get_json()}"}), 400
 
 
 @app.route(f'{config.APP_NAME}/chat/', methods=['POST'])
 @token_required
-def request():
+def chat_request():
     """
     User chat endpoint.
 
@@ -96,12 +99,13 @@ def request():
     """
     data = request.get_json()
 
-    if 'text' in data:
+    if 'text' in data and 'username' in data:
         # Handle initial query
         user_message = data['text']
+        user_name = data['username']
 
         # Convert the user message to a SQL query
-        sql_query = text2SQL(user_message)
+        sql_query = text2sql(user_message, user_name)
 
         # Execute the SQL query
         result = query(sql_query)
@@ -115,7 +119,7 @@ def request():
         # Return the response and query_id
         return jsonify({'query_id': query_id, 'response': response_message}), 200
 
-    elif 'query_id' in data and 'satisfactory' in data:
+    elif 'query_id' in data and 'satisfactory' in data and 'username' in data:
         # Handle feedback
         query_id = data['query_id']
         is_satisfactory = data['is_satisfactory']

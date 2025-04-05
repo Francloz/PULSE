@@ -14,6 +14,11 @@ Then build and run the docker image.
 $ docker build -f App.dockerfile -t my-flask-app .   
 $ docker run --name ToyApp -p 5000:5000 my-flask-app
 ```
+The first line might require to be changed to:
+```bash
+$ docker buildx build -f App.dockerfile -t my-flask-app --load .
+```
+depending on Docker's configuration.
 
 ### Test Keycloak
 ```bash

@@ -1,14 +1,20 @@
 import config
 import sqlite3
 
-def text2SQL(text):
+from multiagent.flow import Text2SQLFlow
+
+
+def text2sql(text, username):
     """
     Given text that represents a natural language query (NLQ), returns the translated SQL code.
 
+    :param username:
     :param text: natural language query
     :return: SQL code
     """
-    return f"You said {text}"
+    flow_instance = Text2SQLFlow(username=username, initial_inquiry=text)
+    result = flow_instance.kickoff()
+    return result
 
 def query(sql_query):
     """
