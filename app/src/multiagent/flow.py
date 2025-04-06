@@ -1,3 +1,12 @@
+import csv
+import difflib
+import io
+import random
+import sqlite3
+import string
+import tempfile
+
+import sqlglot
 from crewai.flow.flow import Flow, listen, start, or_
 from pydantic import BaseModel, Field
 from enum import IntEnum
@@ -8,9 +17,72 @@ from multiagent.model import get_llm
 import re
 import json
 import ast
-import sqlglot
 from sqlglot import parse_one, exp
 from sqlglot.optimizer.qualify import qualify
+from faker import Faker
+import faker
+from synthetic_db_utils import database2str, get_necessary_tables_and_columns, create_synthetic_database
+
+
+def extract_qa_pairs(text_data, alt="reason"):
+    """
+    Parses a string that contains a list of dictionaries (like Python literals),
+    even if there is preceding text before the list structure.
+    Extracts question-answer pairs.
+
+    :param alt:
+    :param text_data: A string potentially containing introductory text followed by the data structure.
+    :return: A list of tuples, where each tuple is (question, answer).
+            Returns an empty list if parsing fails or no valid list structure is found.
+    """
+    qa_pairs = []
+
+    try:
+        start_index = text_data.find('[')
+        # Use rfind to get the *last* closing bracket, assuming the main list is the outer structure
+        end_index = text_data.rfind(']')
+
+        if start_index == -1 or end_index == -1 or end_index <= start_index:
+            print("Error: Could not find valid list structure ([...]) in the text.")
+            return []
+
+        # Extract the substring that contains the list
+        list_substring = text_data[start_index: end_index + 1]
+
+    except Exception as e:
+        print(f"Error finding list structure: {e}")
+        return []
+
+    try:
+        # ast.literal_eval safely parses Python literals from the substring
+        list_substring = list_substring.replace('’', '\'')
+        list_substring = list_substring.replace('‘', '\'')
+        list_substring = list_substring.replace('”', '\"')
+        parsed_data = ast.literal_eval(list_substring)
+    except (ValueError, SyntaxError) as e:
+        print(f"Error parsing with ast.literal_eval on substring: {e}")
+        return []
+
+    # Check if the parsed data is a list
+    if not isinstance(parsed_data, list):
+        print("Parsed data is not a list.")
+        return []
+
+    # Iterate through the list and extract Q&A
+    for item in parsed_data:
+        if isinstance(item, dict):
+            question = item.get('question')
+            # Treat 'reason' as the 'answer' based on the input structure
+            answer = item.get(alt)
+
+            if question and answer:
+                qa_pairs.append((question, answer))
+            else:
+                print(f"Skipping item, missing 'question' or '{alt}': {item}")
+        else:
+            print(f"Skipping item, not a dictionary: {item}")
+
+    return qa_pairs
 
 
 # @dataclass
@@ -103,134 +175,6 @@ class TaskState(BaseModel):
     total_sql: str = ""
 
 
-def extract_qa_pairs(text_data, alt="reason"):
-    """
-    Parses a string that contains a list of dictionaries (like Python literals),
-    even if there is preceding text before the list structure.
-    Extracts question-answer pairs.
-
-    :param alt:
-    :param text_data: A string potentially containing introductory text followed by the data structure.
-    :return: A list of tuples, where each tuple is (question, answer).
-            Returns an empty list if parsing fails or no valid list structure is found.
-    """
-    qa_pairs = []
-
-    try:
-        start_index = text_data.find('[')
-        # Use rfind to get the *last* closing bracket, assuming the main list is the outer structure
-        end_index = text_data.rfind(']')
-
-        if start_index == -1 or end_index == -1 or end_index <= start_index:
-            print("Error: Could not find valid list structure ([...]) in the text.")
-            return []
-
-        # Extract the substring that contains the list
-        list_substring = text_data[start_index: end_index + 1]
-
-    except Exception as e:
-        print(f"Error finding list structure: {e}")
-        return []
-
-    try:
-        # ast.literal_eval safely parses Python literals from the substring
-        list_substring = list_substring.replace('’', '\'')
-        list_substring = list_substring.replace('‘', '\'')
-        list_substring = list_substring.replace('”', '\"')
-        parsed_data = ast.literal_eval(list_substring)
-    except (ValueError, SyntaxError) as e:
-        print(f"Error parsing with ast.literal_eval on substring: {e}")
-        return []
-
-    # Check if the parsed data is a list
-    if not isinstance(parsed_data, list):
-        print("Parsed data is not a list.")
-        return []
-
-    # Iterate through the list and extract Q&A
-    for item in parsed_data:
-        if isinstance(item, dict):
-            question = item.get('question')
-            # Treat 'reason' as the 'answer' based on the input structure
-            answer = item.get(alt)
-
-            if question and answer:
-                qa_pairs.append((question, answer))
-            else:
-                print(f"Skipping item, missing 'question' or '{alt}': {item}")
-        else:
-            print(f"Skipping item, not a dictionary: {item}")
-
-    return qa_pairs
-
-
-def create_database(tables: Dict[str, List[str]]) -> DatabaseConfig:
-    """
-    Create a synthetic database of OMOP CDM restricted to only the tables in 'tables' and the columns
-    :param tables: Map from tables to the columns inside them that are used
-    :return: database connection configuration
-    """
-    # TODO Generate simple synthetic databases
-    pass
-
-
-def extract_schema(node):
-    """
-    Recursively extract a mapping of table/alias to set of columns used.
-    :param node: glotsql node
-    :return: mapping table to columns without temporary views
-    """
-    schema_mapping = {}
-
-    # Process columns in the current node
-    for col in node.find_all(exp.Column):
-        table = col.table or "unknown"
-        schema_mapping.setdefault(table, set()).add(col.name)
-
-    # Process any CTEs (temporary views) in the current node
-    with_clause = node.args.get("with")
-    if with_clause:
-        for cte in with_clause.expressions:
-            cte_name = cte.alias_or_name
-            del schema_mapping[cte_name]
-
-    return schema_mapping
-
-
-def get_necessary_tables_and_columns(sql_alternatives: List[str]) -> Dict[str, List[str]]:
-    """
-    Extracts from a list of SQL code excerpt the tables and columns used in the queries
-    :param sql_alternatives: list of SQL alternatives
-    :return: dictionary from tables used to columns used within each table
-    """
-    table2column: Dict[str, Any] = {}
-
-    for query in sql_alternatives:
-        # Parse the SQL query.
-        parsed = parse_one(query)
-        qualified = qualify(parsed, dialect="postgres", schema=config.OMOP_SCHEMA)
-
-        mapping = extract_schema(qualified)
-        for table, cols in mapping.items():
-            if table in table2column:
-                table2column[table].update(cols)
-            else:
-                table2column[table] = cols
-
-    table2column = {table: list(cols) for table, cols in table2column.items()}
-    return table2column
-
-
-def database2str(database: DatabaseConfig) -> str:
-    """
-    Creates the string representation of the database
-    :param database: database configuration
-    :return:
-    """
-    # TODO Everything
-    pass
-
-
 class Text2SQLFlow(Flow[TaskState]):
     """
     Flow of the task of NL to SQL query.
@@ -239,9 +183,8 @@ class Text2SQLFlow(Flow[TaskState]):
                         "data model for statistical analysis")
     complete_info_prompt = (f"{basic_background}, "
                             "when a clinician requests data you know what information is incomplete for the queries "
-                            "they asked for in a methodical and careful"
-                            "manner in order to preemptively solve ambiguities that might arise when crafting queries "
-                            "for the database."
+                            "they asked for in a methodical and careful manner in order to preemptively solve "
+                            "ambiguities that might arise when crafting queries for the database."
                             "\n---------\n"
                             "Is this query from a knowledgeable clinician sufficiently complete? Query: {"
                             "initial_inquiry}."
@@ -251,6 +194,7 @@ class Text2SQLFlow(Flow[TaskState]):
                             "[{{'question': question, 'reason': reason}},...]"
                             "\nEscape strings as necessary for correct formatting."
                             "\nIf no questions are very essential, give an empty list [].")
+
     rewrite_query_prompt = (
         f"{basic_background}, when given a OMOP CDM database query in natural language, "
         "you can further refine it in a precise and methodical manner."
@@ -261,11 +205,14 @@ class Text2SQLFlow(Flow[TaskState]):
         "\nGive it using the following format: <<< Rewritten query: <query> >>>")
 
     decomposition_prompt = (
-        f"{basic_background}, when given a OMOP CDM database query in natural language, "
-        "you know what steps would be required to translate the query to SQL."
+        f"{basic_background}, when given a OMOP CDM database query description, "
+        "you know what steps would be required to translate the query to SQL. You think things in steps, "
+        "methodically, and clearly to not make mistakes. You always pay attention to the details of the requests"
+        "to not miss critical information. Your resulting query plans are efficient and concise."
         "\n---------\n"
-        "Given this query: '{initial_inquiry}', give all the steps of sub-queries that are required to perform the "
-        "query."
+        "Given this query: '{initial_inquiry}', explain without code all the sub-queries that create views that are "
+        "required to perform the query including the temporary view it would create and what OMOP CDM tables and "
+        "columns it would need."
         "\nUse the following format for each step: "
         "\n<number>: <description of the step in free text>"
         "\n<number>: <description of the step in free text>")
@@ -281,18 +228,24 @@ class Text2SQLFlow(Flow[TaskState]):
         "\nCREATE VIEW <view_name> AS <SQL code>"
         "\n```")
 
-    test_db_prompt = (
-        f"{basic_background}, when given a OMOP CDM database query in natural language, "
-        "you know how to translate it to SQL."
+    test_db = (
+        f"{basic_background}, when given a OMOP CDM database SQL query and knowing the current state "
+        f"of the database, you know what the result of the query would be."
         "\n---------\n"
-        "Given this query: '{query}', and these temporary views '{views}', translate the query to SQL."
-        "\nWhat is the correct result of the query on this database?"
-        "\n{database}"
-        "\n---------"
-        "\nUse the following format: "
-        "\n|col name 1|col name 2|col name 3|..."
-        "\n|row1 value 1|row1 value 2|row1 value 3|..."
-        "\n|row2 value 1|row2 value 2|row2 value 3|...")
+        "Given:"
+        "\n - Query: '{query}'"
+        "\n - Database: '{database}'"
+        "\nGive the result to me in csv format")
+
+    run_sql_on_db_prompt = (
+        f"{basic_background}, when given a OMOP CDM database query in natural language and knowing the current state "
+        f"of the database, you know what the result of the query would be. You always think things through step by "
+        f"step, clearly and methodically."
+        "\n---------\n"
+        "Given:"
+        "\n - Query: '{query}'"
+        "\n - Database: '{database}'"
+        "\nGive the final result to me in csv format using \nRESULT: <csv>")
 
     def __init__(self, username: str, initial_inquiry: str, debug: bool = False, **kwargs: Any):
         """
@@ -306,6 +259,10 @@ class Text2SQLFlow(Flow[TaskState]):
         self.state.user_name = username
         self.state.initial_inquiry = initial_inquiry
         self.debug = debug
+
+    @staticmethod
+    def get_documentation_on(text : str) -> str:
+        pass
 
     @start()
     def initialize_data(self) -> str:
@@ -343,18 +300,21 @@ class Text2SQLFlow(Flow[TaskState]):
             self.state.completed_inquiry = self.state.initial_inquiry
         else:  # If there are questions, solve the ambiguities
             # TODO Change this part to ask user for the information ----------------------------------------------------
-            # This is a placeholder for actually asking the user.
+            #  This is a placeholder for actually asking the user.
             output_lines = []
             for idx, (q, a) in enumerate(q2r, start=1):
                 output_lines.append(f"{idx}. Question: {q}\n   Reason: {a}")
             q2r_text = "\n".join(output_lines)
             llm = get_llm()
             prompt_self_answer = (
-                "As a seasoned data engineer who has guided multiple clinical trials using the OMOP common data model "
-                "for statistical analysis, when a clinician requests data you know what information you understand what"
-                " they mean. When a question arises about ambiguity, make assumptions about what they mean."
-                f"\nFor this query for OMOP CDM DB {self.state.initial_inquiry}. Make assumptions to answer these "
-                f"questions reasonably."
+                "You are a seasoned data engineer with deep experience helping hospitals migrate to the OMOP Common Data Model "
+                "for accurate and efficient statistical analysis. You understand clinical data requests deeply and interpret them "
+                "with confidence. When ambiguity arises, you do not hesitate—you make clear, reasonable assumptions and proceed. "
+                "You always favor simplicity and clarity, and you respond with final decisions—not suggestions. "
+                "Avoid using uncertain language like 'could', 'might', 'if this', or 'we could'. Always choose a single course of action. "
+                "Be specific, direct, and final in your answers."
+                f"\n----------\n"
+                f"For this query for OMOP CDM DB {self.state.initial_inquiry}. Resolve these questions executi:"
                 f"\n{q2r_text}"
                 f"\nAnswer it with JSON format [{{'question': question, 'answer': answer}},...]")
 
@@ -368,7 +328,6 @@ class Text2SQLFlow(Flow[TaskState]):
                 print(prompt)
                 print(response)
                 print(extra_info)
-
             # TODO END -------------------------------------------------------------------------------------------------
 
             # Agglomerate the questions and answers for the query completionist
@@ -463,16 +422,26 @@ class Text2SQLFlow(Flow[TaskState]):
                 print("Extracted SQL code:")
                 print(sql_code)
 
-        databases = self.state.decomposed_queries[self.state.step].random_databases
         tables = get_necessary_tables_and_columns(self.state.decomposed_queries[self.state.step].sql_alternatives)
 
-        for _ in range(config.NUM_SYNTHETIC_DB):
-            database = create_database(tables)
-            databases.append(database)
+        databases = self.state.decomposed_queries[self.state.step].random_databases
+        expected_results = self.state.decomposed_queries[self.state.step].expected_results
+
+        for db_idx in range(config.NUM_SYNTHETIC_DB):
+            database = create_synthetic_database(tables)
+            db_conf = DatabaseConfig(uri=database, name=str(db_idx))
+            databases.append(db_conf)
 
         for database in databases:
-            database_str = database2str(database)
-            # TODO Ask the LLM to generate the expected results of the query on the synthetic databases
+            database_str = database2str(database.uri)
+
+            llm = get_llm()
+            prompt = self.run_sql_on_db_prompt.format(database=database_str, query=current_query)
+            result_str = llm.call(prompt)
+            result = result_str.split("RESULT:")[1]
+            result = result.replace("csv", "").replace("`", "").strip()
+
+            expected_results.append(result)
 
         return "Alternatives prepared"
 
@@ -536,5 +505,5 @@ class Text2SQLFlow(Flow[TaskState]):
 
 
 if __name__ == "__main__":
-    flow_instance = Text2SQLFlow(username="Paco", initial_inquiry="Average age of all patients")
+    flow_instance = Text2SQLFlow(username="Paco", initial_inquiry="Average age of all patients", debug=True)
     flow_instance.kickoff()

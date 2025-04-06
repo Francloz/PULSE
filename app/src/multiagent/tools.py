@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Type
 import requests
 from crewai.tools import BaseTool, tool
@@ -7,6 +8,8 @@ from pydantic import BaseModel, Field
 import psycopg2
 
 from config import OMOP_DB_PARAMS, OMOP_DOCS_PATH
+from multiagent.model import get_llm
+
 
 class MyToolInput(BaseModel):
     """Input schema for MyCustomTool."""
@@ -54,14 +57,33 @@ class ColumnExamplesOMOP(BaseTool):
         return total_result[:-1]
 
 
-@tool
-def recheck_omop_tool():
-    """
-    Tool wrapper for a RAG of the OMOP CDM documentation
-    :return: documentation
-    """
-    rag_tool = RagTool()
-    rag_tool.add(data_type="web_page", url=OMOP_DOCS_PATH)
+def get_documentation_tool():
+    # Create a custom LLM instance
+    custom_llm = get_llm()
+
+    # Create a RAG tool with custom configuration
+    config = {
+        "llm": {
+            "provider": "ollama",
+            "config": {
+                "model": custom_llm.model,
+                "base_url": custom_llm.base_url
+            }
+        }
+    }
+    # TODO there is some kind of configuration error. The tool is thought out to use API keys instead of local models
+    #  and simply using the details of our llm does not work directly.
+    rag_tool = RagTool(config=config)
+
+    # Add content from a file
+    for file in os.listdir(OMOP_DOCS_PATH):
+        rag_tool.add(data_type="file", path=file)
+
     return rag_tool
+
+
+if __name__ == '__main__':
+
+    tool = get_documentation_tool()
 
 

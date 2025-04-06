@@ -3,9 +3,9 @@ from crewai import LLM
 import config
 
 
-def get_llm(model=config.MODEL_NAME, temperature=0, top_p=0):
+def get_llm(model=config.MODEL_NAME, temperature=0.0, top_p=0):
     return LLM(
-        model="ollama/" + model,  # Model name (without :1b unless needed)
+        model="ollama/" + model,
         base_url="http://localhost:11434",  # Ollama's API URL
         api_base="http://localhost:11434/api",  # Ensures it calls the right API
         litellm_provider="ollama",  # Explicitly set the provider to Ollama

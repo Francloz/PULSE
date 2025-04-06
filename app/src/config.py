@@ -42,11 +42,17 @@ if not os.path.exists(LOCAL_DATABASE_PATH):
         pass  # Creates an empty file
 
 
-NUM_SYNTHETIC_DB = 0
-NUM_CONSISTENCY_REPLICATES = 1
-ON_SQL_TEST_FAILURE = "SKIP"
 CONTEXT_LIMIT = 1000
 MODEL_NAME = "gemma3:4b"
+
+
+NUM_SYNTHETIC_DB = 2
+SZ_SYNTHETIC_DB = 5
+PROB_NULL_SYNTHETIC_DB = 0.01
+MAX_NUMBER_COLUMN_ERRORS = 10
+NUM_CONSISTENCY_REPLICATES = 2
+ON_SQL_TEST_FAILURE = "SKIP"
+
 OMOP_SCHEMA = {
     "person": {
         "person_id": "integer NOT NULL",
@@ -559,3 +565,4 @@ OMOP_SCHEMA = {
         "cohort_initiation_date": "date NULL"
     }
 }
+
