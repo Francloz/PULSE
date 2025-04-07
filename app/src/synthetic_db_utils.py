@@ -32,7 +32,7 @@ def create_synthetic_database(tables: Dict[str, List[str]], add_non_nullable: bo
         data[table] = {}
 
         extra_cols = [other_col for other_col, col_config in config.OMOP_SCHEMA[table].items() if other_col not in cols
-                      and not col_config.endswith("NOT NULL")]
+                      and (add_non_nullable and not col_config.endswith("NOT NULL"))]
 
         for col in cols + extra_cols:
             column_settings = real_schema[col].split(" ")
@@ -225,5 +225,37 @@ def database2str(uri: str) -> str:
     conn.close()
 
     return db_str
+
+
+def random_extraction(tables: Dict[str, List[str]], n_rows:int=5, add_non_nullable:bool=True):
+    temp_db = tempfile.NamedTemporaryFile(delete=False, suffix='.db', dir=config.DATA_DIR).name
+    conn = sqlite3.connect(temp_db)
+    cursor = conn.cursor()
+
+    data = {}
+    for table, cols in tables.items():
+        real_schema = config.OMOP_SCHEMA[table]
+        data[table] = {}
+
+        extra_cols = [other_col for other_col, col_config in config.OMOP_SCHEMA[table].items() if other_col not in cols
+                      and (add_non_nullable and not col_config.endswith("NOT NULL"))]
+
+        # TODO Extract random data from those rows. Somehow, in a way that does not break foreign keys.
+
+        column_definitions = ', '.join(
+            f"{col_name} {real_schema[col_name]}" for col_name, values in data[table].items()
+        )
+        cursor.execute(f"CREATE TABLE IF NOT EXISTS {table} ({column_definitions});")
+
+        columns = list(data[table].keys())
+        rows = list(zip(*data[table].values()))
+
+        placeholders = ", ".join("?" * len(columns))
+        query = f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders})"
+        cursor.executemany(query, rows)
+
+    conn.commit()
+    conn.close()
+    return temp_db
 
 

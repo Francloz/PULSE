@@ -32,8 +32,8 @@ Agents perform significantly better when given specialized roles rather than gen
 
 @CrewBase
 class CompletionCrew:
-    agents_config = "config/completionist/agents.yaml"
-    tasks_config = "config/completionist/tasks.yaml"
+    agents_config = "agent_config/completionist/agents.yaml"
+    tasks_config = "agent_config/completionist/tasks.yaml"
 
     @agent
     def information_completionist(self) -> Agent:
