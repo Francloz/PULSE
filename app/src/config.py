@@ -1,6 +1,6 @@
 import os
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Get the absolute path of the config.py file
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Get the absolute path of the agent_config.py file
 DATA_DIR = os.path.join(BASE_DIR, '..', 'data')
 LOCAL_DATABASE_PATH = os.path.join(DATA_DIR, 'your_database.db')
 TEMPLATE_DIR = os.path.join(BASE_DIR, '..', 'templates')
@@ -53,6 +53,7 @@ MAX_NUMBER_COLUMN_ERRORS = 10
 NUM_CONSISTENCY_REPLICATES = 2
 ON_SQL_TEST_FAILURE = "SKIP"
 
+OMOP_EXAMPLE = ""
 OMOP_SCHEMA = {
     "person": {
         "person_id": "integer NOT NULL",

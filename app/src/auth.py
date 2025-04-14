@@ -21,7 +21,7 @@ def verify_token(token):
     # Introspect the token with client_id included
     token_info = keycloak_openid.introspect(
         token=token,
-        # client_id=config.CLIENT_ID  # Explicitly pass client_id
+        # client_id=agent_config.CLIENT_ID  # Explicitly pass client_id
     )
 
     if token_info["active"]:
