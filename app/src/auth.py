@@ -43,14 +43,19 @@ def token_required(f):
     def decorated(*args, **kwargs):
         auth_header = request.headers.get("Authorization")
         if not auth_header:
-            return jsonify({"error": f"Invalid authorization header received. {auth_header}"}), 401
+            return jsonify({"error": f"No Authorization found in the header. Received:{auth_header}"}), 401
+        scheme, credential = auth_header.split(" ")
+        if len(auth_header.split()) != 2:
+            return jsonify({"error": f"Invalid authorization header. Expected two elements separated with a space. {auth_header}"}), 401
+        if scheme.lower() != "bearer":
+            return jsonify({"error": f"Expected the authorization header to be \"bearer <access token>\". {auth_header}"}), 401
         try:
             access_token = auth_header
             _ = keycloak_openid.decode_token(
                 token=access_token
             )
         except Exception as e:
-            return jsonify({"error": f"Invalid token."}), 401
+            return jsonify({"error": f"Failed to decode the token. This could be caused by an invalid token."}), 401
         return f(*args, **kwargs)
     return decorated
 
