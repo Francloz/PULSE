@@ -1,21 +1,30 @@
 import os
 import sys
+import uuid
+
 # Change the current working directory to be consistent with docker's
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(os.path.join(script_dir, "..", ".."))
 
 from flask import jsonify
 from config import TEMPLATE_DIR, STATIC_DIR
-from auth import token_required, keycloak_openid
+from auth import any_credentials_required
 from queries import *
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, g
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from queries import add_query, add_satisfaction
 from celery import Celery, Task
+import redis
+from utils import ChatHandler, SessionHandler
 
 
 def celery_init_app(app: Flask) -> Celery:
+    """
+    Initialize the Celery application for the Flask instance.
+    :param app: Flask instance.
+    :return: celery instance.
+    """
     class FlaskTask(Task):
         def __call__(self, *args: object, **kwargs: object) -> object:
             with app.app_context():
@@ -28,7 +37,20 @@ def celery_init_app(app: Flask) -> Celery:
     return celery_app
 
 
+def redis_init_client():
+    """
+    Initializes the redis client
+    :return:
+    """
+    redis_client = redis.Redis(host='localhost', port=6379, db=0)
+    return redis_client
+
+
 def create_app() -> Flask:
+    """
+    Creates the Flask application with Redis support
+    :return:
+    """
     app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
     app.config.from_mapping(
         CELERY=dict(
@@ -43,7 +65,7 @@ def create_app() -> Flask:
 
 
 app = create_app()
-
+redis_client = redis_init_client()
 limiter = Limiter(
     get_remote_address,
     app=app,
@@ -52,41 +74,8 @@ limiter = Limiter(
 )
 
 
-@app.route(f'{config.APP_NAME}/')
-@limiter.limit("5 per minute")  # Limit to 5 requests per minute
-def home():
-    return render_template('index.html')
-
-
-@app.route(f'{config.APP_NAME}/submit', methods=['POST'])
-@limiter.limit("5 per minute")  # Limit to 5 requests per minute
-def login():
-    """
-    User login endpoint.
-
-    This endpoint accepts a POST request with a JSON payload containing the user's
-    username and password. If the credentials are valid, it returns a JSON response
-    with a JWT token that the user can use for further communication with the system.
-
-    :return: JSON Response, Status Code
-    """
-    try:
-        data = request.get_json()
-        username = data['username']
-        password = data['password']
-        try:
-            print(username, password, file=sys.stderr)
-            token = keycloak_openid.token(username, password)
-            return jsonify(token), 200
-        except Exception as e:
-            return jsonify({"error": "Invalid credentials"}), 401
-    except Exception as e:
-        print(request.get_json(), file=sys.stderr)
-        return jsonify({"error": f"Expected username and password credentials instead of {request.get_json()}"}), 400
-
-
-@app.route(f'{config.APP_NAME}/chat/', methods=['POST'])
-@token_required
+@app.route(f'{config.APP_NAME}/chat', methods=['POST'])
+@any_credentials_required
 def chat_request():
     """
     User chat endpoint.
@@ -102,22 +91,35 @@ def chat_request():
     if 'text' in data and 'username' in data:
         # Handle initial query
         user_message = data['text']
-        user_name = data['username']
+        if 'chat_id' in data:
+            chat_id = data['chat_id']
+        else:
+            chat_id = str(uuid.uuid4())
 
-        # Convert the user message to a SQL query
-        sql_query = text2sql(user_message, user_name)
+        session_handler = SessionHandler(redis_client)
+        session_handler.create_or_recover_session(g.user_id)
+        chat_handler: ChatHandler = session_handler.chat_handler
 
-        # Execute the SQL query
-        result = query(sql_query)
+        chat_handler.create_or_recover_chat(chat_id)
+        chat_response = chat_handler.continue_chat(user_message)
+        is_success = chat_handler.chat_state.outstanding_task is None
 
-        # Format the result into a readable response
-        response_message = f"Query result: {result}"
+        if is_success:  # Execute the SQL query
+            extract_query = lambda x: x  # placeholder
+            sql_query = extract_query(chat_response)
+            result = query(sql_query)
 
-        # Generate a query_id to track the interaction
-        query_id = add_query(user_message, sql_query)
+            # Format the result into a readable response
+            response_message = f"Query result: {result}"
 
-        # Return the response and query_id
-        return jsonify({'query_id': query_id, 'response': response_message}), 200
+            # Generate a query_id to track the interaction
+            query_id = add_query(user_message, sql_query,
+                                 f"{session_handler.session_state.user_id}:{session_handler.session_state.session_id}:{chat_id}")
+
+            # Return the response and query_id
+            return jsonify({'chat_id': chat_id, 'chat_response': chat_response, 'query_result': result}), 200
+        else:  # Send interruption text, such as a clarification request to the user
+            return jsonify({'chat_id': chat_id, 'chat_response': chat_response}), 200
 
     elif 'query_id' in data and 'satisfactory' in data and 'username' in data:
         # Handle feedback

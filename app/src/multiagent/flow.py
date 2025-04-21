@@ -23,6 +23,7 @@ from faker import Faker
 import faker
 from synthetic_db_utils import database2str, get_necessary_tables_and_columns, create_synthetic_database
 from prompts import *
+from utils import ChatState
 
 
 def extract_qa_pairs(text_data, alt="reason"):
@@ -86,7 +87,6 @@ def extract_qa_pairs(text_data, alt="reason"):
     return qa_pairs
 
 
-# @dataclass
 class DatabaseConfig(BaseModel):
     """
     This class represents a unique database.
@@ -99,7 +99,6 @@ class DatabaseConfig(BaseModel):
     uri: str
 
 
-# @dataclass
 class ExecutionEnum(IntEnum):
     """
     This class represents an enumeration of types of possible outcomes of a SQL code execution.
@@ -108,7 +107,6 @@ class ExecutionEnum(IntEnum):
     valid = 0  # Indicates a valid execution
 
 
-# @dataclass
 class ExecutionResult(BaseModel):
     """
     This class represents the execution result of a SQL code execution.
@@ -121,7 +119,6 @@ class ExecutionResult(BaseModel):
     result: str
 
 
-# @dataclass
 class QueryState(BaseModel):
     """
     This class represents the state of a simple NL query to SQL translation. It goes from creating
@@ -150,7 +147,6 @@ class QueryState(BaseModel):
     consistent_sql: str = ""
 
 
-# @dataclass
 class TaskState(BaseModel):
     """
     This class represents the current state of the process in from NL query to SQL query.
@@ -176,11 +172,13 @@ class TaskState(BaseModel):
     total_sql: str = ""
 
 
+ChatState.model_rebuild()
+
+
 class Text2SQLFlow(Flow[TaskState]):
     """
     Flow of the task of NL to SQL query.
     """
-
 
     def __init__(self, username: str, initial_inquiry: str, debug: bool = False, **kwargs: Any):
         """
@@ -196,7 +194,7 @@ class Text2SQLFlow(Flow[TaskState]):
         self.debug = debug
 
     @staticmethod
-    def get_documentation_on(text : str) -> str:
+    def get_documentation_on(text: str) -> str:
         pass
 
     @start()
@@ -420,7 +418,7 @@ class Text2SQLFlow(Flow[TaskState]):
         return "Final query composed"
 
     @listen(compose)
-    def execute_final_query(self):
+    def validate_final_query(self):
         """
         Executes the final query and gets the result.
 
