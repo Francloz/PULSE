@@ -88,7 +88,7 @@ class ChatHandler:
             )
             self.save_chat(chat_id, self.chat_state)
 
-        from multiagent.flow import Text2SQLFlow
+        from multiagent.workflow import Text2SQLFlow
         username = self.redis.get(f"{self.user_id}:user_name")
         initial_inquiry = self.chat_state.outstanding_task.initial_inquiry
         if self.chat_state.outstanding_task:

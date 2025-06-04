@@ -1,6 +1,0 @@
-complete_information:
-  description: >
-    Assert whether the query is sufficiently detailed to translate the query to SQL for a OMOP CDM database.
-  expected_output: >
-    Repeat everything you are told. Give a reasoned explanation on why is it sufficiently or not sufficiently detailed and what may be needed to fix it.
-  agent: information_completionist
