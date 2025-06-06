@@ -1,0 +1,23 @@
+name: biobert
+channels:
+  - conda-forge
+  - https://repo.anaconda.com/pkgs/main
+  - https://repo.anaconda.com/pkgs/r
+  - defaults
+prefix: /home/fran/anaconda3/envs/biobert
+dependencies:
+  - python=3.9
+  - faiss
+  - flask
+  - httpx
+  - fsspec
+  - huggingface_hub
+  - pip
+  - pip:
+      - hf-xet==1.1.2
+  - pandas
+  - spacy
+  - pip:
+      - transformers
+      - torch==2.7.0
+      - torchvision==0.22.0

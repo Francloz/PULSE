@@ -1,17 +1,86 @@
-research_task:
+tag_task:
   description: >
-    Conduct a thorough research about {topic}
-    Make sure you find any interesting and relevant information given
-    the current year is {current_year}.
-  expected_output: >
-    A list with 10 bullet points of the most relevant information about {topic}
-  agent: researcher
+    Given a free‐text query {query}, return the same sentence with each relevant entity wrapped in the appropriate 
+    tag having searched any unknown terms to be assured of proper classification. Entities to tag include the following:
 
-reporting_task:
-  description: >
-    Review the context you got and expand each topic into a full section for a report.
-    Make sure the report is detailed and contains any and all relevant information.
+    - <CONDITION>: Diagnoses, signs, or symptoms indicating the presence of a disease or medical condition.
+    - <DRUG>: Substances introduced into the body to treat or prevent a condition.
+    - <PROCEDURE>: Clinical activities ordered or performed by healthcare providers for diagnosis or treatment.
+    - <MEASUREMENT>: Structured data from clinical tests (e.g., lab tests, vital signs) with numerical or categorical results.
+    - <VALUE>: Categorical results from measurements or observations, expressed as standardized concepts (e.g., Yes, No, Never).
+    - <UNIT>: The unit associated with a numeric measurement (e.g., mg/dL, mmHg).
+    - <OBSERVATION>: Clinical or contextual facts such as medical history, lifestyle, or social circumstances noted during examination or procedures.
+    - <DEVICE>: Information about physical medical devices (e.g., implants, monitors) used diagnostically or therapeutically.
+    - <VISIT_TYPE>: Type of healthcare encounter (e.g., inpatient, outpatient, emergency room).
+    - <GENDER>: The biological sex of the individual.
+    - <RACE>: The racial or ethnic background of the individual.
+
+  expected_input: >
+    query: string
+
   expected_output: >
-    A fully fledged report with the main topics, each with a full section of information.
-    Formatted as markdown without '```'
-  agent: reporting_analyst
+    A single string: the original query with entities wrapped in tags. Example:
+    "Give me count of <GENDER>women</GENDER> who have <CONDITION>cancer</CONDITION>."
+  
+
+map_task:
+  description: >
+    Given a tagged sentence (e.g., "Count of <GENDER>women</GENDER> with <CONDITION>cancer</CONDITION>"),
+    extract all tagged entities, and for each:
+      1. Identify tag category (e.g., GENDER, CONDITION).
+      2. Extract the raw text inside the tag (e.g., “women”, “cancer”).
+      3. Use concept_lookup_tool(text, category) to retrieve concept_id and concept_name.
+    Return a JSON array where each element has:
+      - tag: the XML tag used (e.g., "GENDER")
+      - text: the exact substring that was tagged (e.g., "women")
+      - concept_id: integer from OMOP vocabulary
+      - concept_name: standardized name from OMOP vocabulary
+  expected_input: >
+    tagged_sentence: string
+  expected_output: |
+    [
+      {
+        "tag": "GENDER",
+        "text": "women",
+        "concept_id": 8532,
+        "concept_name": "FEMALE"
+      },
+      {
+        "tag": "CONDITION",
+        "text": "cancer",
+        "concept_id": 4194405,
+        "concept_name": "Cancer confirmed"
+      }
+    ]
+    
+    
+
+validate_task:
+  description: >
+    Given a tagged sentence and its JSON mapping array, verify that each tagged entity
+    has a corresponding entry in the mapping. If any tag is missing a mapping, list it.
+    Otherwise, confirm that all tags are mapped.
+  expected_input: >
+    tagged_sentence: string
+    mapping_array:
+      - tag: string
+        text: string
+        concept_id: integer
+        concept_name: string
+  expected_output: |
+    If every tag from the sentence appears in mapping_array:
+      {
+        "status": "complete",
+        "message": "All entities have been mapped."
+      }
+    If any tag is missing:
+      {
+        "status": "incomplete",
+        "missing_mappings": [
+          {
+            "tag": "<TAG_NAME>",
+            "text": "<TAGGED_TEXT>"
+          },
+          ...
+        ]
+      }

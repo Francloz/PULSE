@@ -1,17 +1,46 @@
-research_task:
+schema_linking_task:
   description: >
-    Conduct a thorough research about {topic}
-    Make sure you find any interesting and relevant information given
-    the current year is {current_year}.
+    Given a natural language query {query} and a mapping document {mapping}, identify all relevant tables,
+    columns, and relationships needed to answer the query. Use the Schema Linking Tool to generate a concise
+    description of the relevant schema elements, including example values from the database.
+  expected_input: >
+    query: string
+    mapping: dict
   expected_output: >
-    A list with 10 bullet points of the most relevant information about {topic}
-  agent: researcher
+    A structured schema description including:
+      - Tables involved
+      - Columns of interest
+      - Relationships between tables
+      - Example values (if available)
 
-reporting_task:
+planning_task:
   description: >
-    Review the context you got and expand each topic into a full section for a report.
-    Make sure the report is detailed and contains any and all relevant information.
+    Given a schema description and a natural language query {query}, plan the steps required to translate
+    the query into SQL. Use the OMOP CDM Documentation RAG and Similar Examples Retriever to guide the plan.
+  expected_input: >
+    query: string
+    schema_description: string
   expected_output: >
-    A fully fledged report with the main topics, each with a full section of information.
-    Formatted as markdown without '```'
-  agent: reporting_analyst
+    A step-by-step plan for SQL generation, including:
+      - Logical steps
+      - Required joins
+      - Filters and conditions
+      - Argument templates
+
+sql_generation_task:
+  description: >
+    Given a SQL plan and schema description, generate a parameterized SQL query using argument templates.
+  expected_input: >
+    sql_plan: string
+    schema_description: string
+  expected_output: >
+    A SQL query with placeholders for arguments.
+
+argument_substitution_task:
+  description: >
+    Given a parameterized SQL query and a mapping of arguments, substitute the placeholders with actual values.
+  expected_input: >
+    sql_template: string
+    argument_mapping: dict
+  expected_output: >
+    A fully executable SQL query.

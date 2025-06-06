@@ -1,17 +1,37 @@
-research_task:
+clarify_task:
   description: >
-    Conduct a thorough research about {topic}
-    Make sure you find any interesting and relevant information given
-    the current year is {current_year}.
+    Review this query intended for use with an OMOP CDM database: "{query}".
+    Clarify any ambiguous terms or vague phrasing, and ensure the query is 
+    understandable, specific, and aligned with OMOP CDM vocabulary.
   expected_output: >
-    A list with 10 bullet points of the most relevant information about {topic}
-  agent: researcher
+    A rewritten version of the original natural language query that is clearer, 
+    more precise, and compatible with OMOP CDM structure, without changing its intended meaning.
+  agent: consultant_1
 
-reporting_task:
+standardize_task:
   description: >
-    Review the context you got and expand each topic into a full section for a report.
-    Make sure the report is detailed and contains any and all relevant information.
+    Transform the clarified user query into a standardized format using consistent, professional,
+    and domain-appropriate language. Rephrase informal or ambiguous terms into precise clinical
+    or technical terminology. Ensure the structure of the query supports clarity and downstream
+    processing (e.g., for analytics, database queries, or reporting).
+    
+    Key transformation rules:
+    - Replace casual terms like "have cancer" with clinical terms like "cancer diagnosis"
+    - Use "male"/"female" instead of "men"/"women"
+    - Avoid vague phrasing such as "give me" or "show me"
+    - Structure the query as a clear request, e.g., "Count of...", "List of...", "Average of..."
+
   expected_output: >
-    A fully fledged report with the main topics, each with a full section of information.
-    Formatted as markdown without '```'
-  agent: reporting_analyst
+    A reworded version of the input query that follows a formal, standardized structure suitable for clinical data analysis.
+    
+    Examples:
+    - Input: "Give me count of women, who have cancer"
+      Output: "Count of patients who are female and have a cancer diagnosis"
+
+    - Input: "How many men have diabetes?"
+      Output: "Count of patients who are male and have a diabetes diagnosis"
+
+    - Input: "List kids with asthma"
+      Output: "List of patients under 18 years old diagnosed with asthma"
+
+  agent: consultant_1

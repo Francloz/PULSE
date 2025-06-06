@@ -11,16 +11,17 @@ APP_NAME = "/PULSE"
 KEYCLOAK_PARAMS = {
     "host": os.getenv("KEYCLOAK_HOST", "http://localhost"),
     "port": os.getenv("KEYCLOAK_PORT", "8080"),  # Default to 5432 if not set
-    "client_id": os.getenv("KEYCLOAK_PULSE_CLIENT_ID", "myclient"),
+    "client_id": os.getenv("KEYCLOAK_PULSE_CLIENT_ID", "pulse-client"),
     "client_secret": os.getenv("KEYCLOAK_PULSE_CLIENT_SECRET", ""),
-    "realm": os.getenv("KEYCLOAK_PULSE_REALM", "myrealm"),
+    "realm": os.getenv("KEYCLOAK_PULSE_REALM", "pulse-client"),
+    "server_metadata_url": os.getenv("KEYCLOAK_SERVER_METADATA_URL", f"{os.getenv("KEYCLOAK_HOST", "http://localhost")}:{os.getenv("KEYCLOAK_PORT", "8080")}/realms/{os.getenv("KEYCLOAK_PULSE_REALM", "myrealm")}/.well-known/openid-configuration"),
 }
 
 KEYCLOAK_SERVER = KEYCLOAK_PARAMS["host"] + ":" + KEYCLOAK_PARAMS["port"]
-REALM_NAME = KEYCLOAK_PARAMS["realm"]
-CLIENT_ID = KEYCLOAK_PARAMS["client_id"]
-CLIENT_SECRET = KEYCLOAK_PARAMS["client_secret"]
-
+KEYCLOAK_REALM_NAME = KEYCLOAK_PARAMS["realm"]
+KEYCLOAK_CLIENT_ID = KEYCLOAK_PARAMS["client_id"]
+KEYCLOAK_CLIENT_SECRET = KEYCLOAK_PARAMS["client_secret"]
+KEYCLOAK_METADATA_URL = KEYCLOAK_PARAMS["server_metadata_url"]
 
 
 OMOP_DOCS_PATH = "https://ohdsi.github.io/CommonDataModel/cdm54.html" # maybe this https://ohdsi.github.io/CommonDataModel/cdm54.html

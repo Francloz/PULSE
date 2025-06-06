@@ -27,9 +27,9 @@ class TextToSqlMas():
         )
 
     @agent
-    def reporting_analyst(self) -> Agent:
+    def boss(self) -> Agent:
         return Agent(
-            config=self.agents_config['reporting_analyst'], # type: ignore[index]
+            config=self.agents_config['boss'], # type: ignore[index]
             verbose=True
         )
 
@@ -37,15 +37,15 @@ class TextToSqlMas():
     # task dependencies, and task callbacks, check out the documentation:
     # https://docs.crewai.com/concepts/tasks#overview-of-a-task
     @task
-    def research_task(self) -> Task:
+    def clarify_task(self) -> Task:
         return Task(
-            config=self.tasks_config['research_task'], # type: ignore[index]
+            config=self.tasks_config['clarify_task'], # type: ignore[index]
         )
 
     @task
-    def reporting_task(self) -> Task:
+    def standardize_task(self) -> Task:
         return Task(
-            config=self.tasks_config['reporting_task'], # type: ignore[index]
+            config=self.tasks_config['standardize_task'], # type: ignore[index]
             output_file='report.md'
         )
 

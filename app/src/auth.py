@@ -3,7 +3,7 @@ import uuid
 from typing import Optional
 from warnings import deprecated
 from keycloak import KeycloakOpenID
-from flask import request, jsonify, g
+from flask import request, jsonify, g, session, redirect, url_for
 from functools import wraps
 import requests
 from jose import jwt
@@ -14,8 +14,8 @@ from main import redis_client
 
 keycloak_openid = KeycloakOpenID(
     server_url=config.KEYCLOAK_SERVER,
-    client_id=config.CLIENT_ID,
-    realm_name=config.REALM_NAME,
+    client_id=config.KEYCLOAK_CLIENT_ID,
+    realm_name=config.KEYCLOAK_REALM_NAME,
     verify=True
 )
 
@@ -60,8 +60,27 @@ def get_username(user_id: str):
         raise ValueError("The user id is not associated with any username")
     return username
 
+
+def login_required(f):
+    """
+    Decorator function for api calls that require authentication.
+    :param f: flask callable
+    :return:
+    """
+    @wraps(f)
+    def wrapped_view(**kwargs):
+        if 'user' not in session:
+            return redirect(url_for(f'{config.APP_NAME}/login'))
+        return f(**kwargs)
+    return wrapped_view
+
+
+@deprecated
 def any_credentials_required(f):
     """
+    This function is deprecated and will be removed in a future release.
+    This is due to using the ROPC Grant, which is not recommended. It will be removed in favour of PKCE grant.
+
     Wrapper that checks the REST API incoming message header to find credentials.
     It accepts either 'basic', which should be a Base64 encoded string as follows
         username:credentials
@@ -123,7 +142,6 @@ def any_credentials_required(f):
         return wrapped_response
 
     return decorated
-
 
 @deprecated
 def user_credentials_required(f):

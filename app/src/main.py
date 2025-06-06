@@ -6,9 +6,9 @@ import uuid
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(os.path.join(script_dir, "..", ".."))
 
-from flask import jsonify
+from flask import jsonify, session, redirect, url_for, send_from_directory
 from config import TEMPLATE_DIR, STATIC_DIR
-from auth import any_credentials_required
+from auth import login_required
 from queries import *
 from flask import Flask, render_template, request, g
 from flask_limiter import Limiter
@@ -17,6 +17,7 @@ from queries import add_query, add_satisfaction
 from celery import Celery, Task
 import redis
 from utils import ChatHandler, SessionHandler
+from authlib.integrations.flask_client import OAuth
 
 
 def celery_init_app(app: Flask) -> Celery:
@@ -73,9 +74,57 @@ limiter = Limiter(
     storage_uri="memory://",
 )
 
+oauth = OAuth(app)
+oauth.register(
+    name="keycloak",
+    client_id=config.KEYCLOAK_CLIENT_ID,
+    client_secret=config.KEYCLOAK_CLIENT_SECRET,
+    server_metadata_url=os.getenv("KEYCLOAK_SERVER_METADATA_URL"),
+    client_kwargs={"scope": "openid profile email"},
+)
+
+@app.route(f'{config.APP_NAME}/index', methods=['POST'])
+def index():
+    return jsonify(
+        {
+            'name': 'PULSE REST API',
+            'version': '0.0.0',
+            'status': 'running',
+            'authenticated': 'user' in session,  # Keycloak auth status
+            'endpoints': {
+                'login': '/login',
+                'logout': '/logout',
+                'protected': '/chat',
+                'public': '/index'
+            },
+            'documentation': f'{config.APP_NAME}/docs',
+        }
+    )
+
+
+@app.route(f'{config.APP_NAME}/docs', methods=['GET'])
+def docs():
+    return send_from_directory('templates', 'docs.html')
+
+@app.route(f'{config.APP_NAME}/login', methods=['POST'])
+def login():
+    redirect_uri = url_for("auth", _external=True)
+    return oauth.keycloak.authorize_redirect(redirect_uri)
+
+@app.route("/auth")
+def auth():
+    token = oauth.keycloak.authorize_access_token()
+    session["user"] = oauth.keycloak.parse_id_token(token)
+    return redirect("/")
+
+@app.route('f{config.APP_NAME}/logout')
+def logout():
+    session.pop('user', None)
+    session.pop('access_token', None)
+    return redirect(url_for(f'{config.APP_NAME}/'))
 
 @app.route(f'{config.APP_NAME}/chat', methods=['POST'])
-@any_credentials_required
+@login_required
 def chat_request():
     """
     User chat endpoint.
