@@ -29,7 +29,8 @@ map_task:
     extract all tagged entities, and for each:
       1. Identify tag category (e.g., GENDER, CONDITION).
       2. Extract the raw text inside the tag (e.g., “women”, “cancer”).
-      3. Use concept_lookup_tool(text, category) to retrieve concept_id and concept_name.
+      3. Map the entities to concept ids alternatives giving a list of pairs [(text, tag), ...].
+      4. Filter the alternatives to select the most appropriate one.
     Return a JSON array where each element has:
       - tag: the XML tag used (e.g., "GENDER")
       - text: the exact substring that was tagged (e.g., "women")

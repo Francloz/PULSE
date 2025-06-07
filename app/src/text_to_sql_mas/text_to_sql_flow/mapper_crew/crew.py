@@ -4,7 +4,10 @@ from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
 from crewai.agents.agent_builder.base_agent import BaseAgent
 from typing import List
-from tools import LinkMentionsTool, SearchEngineTool  # Only needed by mapper_agent
+
+from crewai_tools.tools.mdx_seach_tool.mdx_search_tool import MDXSearchTool
+
+from tools import LinkMentionsTool, SearchEngineTool, path_to_omopcdm_doct  # Only needed by mapper_agent
 
 @CrewBase
 class MapperCrew():
@@ -15,7 +18,9 @@ class MapperCrew():
     tasks: List[Task]
 
     llm = LLM(
-        model="ollama/qwen3:14b",
+        model="ollama/qwen3:30b-a3b",
+        # model="ollama/qwen2.5:14b-instruct",
+        # model="ollama/mistral-small:24b-instruct-2501-q4_K_M",
         base_url="http://localhost:11434",
     )
 
@@ -33,7 +38,23 @@ class MapperCrew():
         return Agent(
             config=self.agents_config['mapper_agent'],  # type: ignore[index]
             verbose=True,
-            tools=[LinkMentionsTool()],
+            tools=[LinkMentionsTool(), MDXSearchTool(mdx=path_to_omopcdm_doct,
+                                     config=dict(
+                                         llm= dict(
+                                            provider="ollama",
+                                            config=dict(
+                                                model="qwen3:30b-a3b",
+                                                base_url="http://localhost:11434"
+                                            )
+                                        ),
+                                         embedder=dict(
+                                             provider="huggingface",
+                                             config=dict(
+                                                 model="BAAI/bge-large-en-v1.5",
+                                             ),
+                                         ),
+                                     )
+                                     )],
             llm=self.llm,
         )
 

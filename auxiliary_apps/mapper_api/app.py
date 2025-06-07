@@ -8,7 +8,7 @@ from category_aware_mapper import BioBERTEntityLinker  # Replace with actual pat
 app = Flask(__name__)
 
 # Initialize the linker
-linker = BioBERTEntityLinker(debug=False)
+linker = BioBERTEntityLinker()
 
 @app.route("/link", methods=["POST"])
 def link_mentions():

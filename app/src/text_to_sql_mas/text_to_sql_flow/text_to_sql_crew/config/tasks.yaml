@@ -1,21 +1,92 @@
 schema_linking_task:
   description: >
-    Given a natural language query {query} and a mapping document {mapping}, identify all relevant tables,
-    columns, and relationships needed to answer the query. Use the Schema Linking Tool to generate a concise
-    description of the relevant schema elements, including example values from the database.
+    Given a natural language query:
+    "{query}" 
+    
+    Analyze it to identify all relevant OMOP Common Data Model (CDM) 
+    tables, columns, and relationships required to answer the query. Use the OMOP CDM documentation as the 
+    authoritative source to understand table purposes, column definitions, data types, primary/foreign key 
+    roles, and inter-table relationships. You must extract this information from the OMOP CDM specification 
+    and present the output in a precise structured format.
+
+    The goal is to generate a self-contained schema snapshot that:
+      - Names all relevant tables
+      - Lists only the involved columns with detailed metadata
+      - Captures key relationships across tables
+      - Provides illustrative example values if available or typical (e.g., 9201 for gender_concept_id)
+
+    The output format must follow the example below, replacing the placeholder values with real OMOP CDM 
+    schema information relevant to the query.
+
   expected_input: >
     query: string
-    mapping: dict
+
   expected_output: >
-    A structured schema description including:
-      - Tables involved
-      - Columns of interest
-      - Relationships between tables
-      - Example values (if available)
+    A structured schema description in the following format:
+
+    [DB_ID] omop_cdm
+    [Schema]
+    # table: <table_name>
+    [
+    (<column_name>:<DATA_TYPE>, <brief description>, [Primary Key/Foreign Key if applicable], Examples: [<val1>, <val2>])
+    ]
+
+    # table: <table_name>
+    [
+    ...
+    ]
+
+    [Foreign keys]
+    <source_table>.<foreign_key_column> → <target_table>.<primary_key_column>
+
+  example:
+    query: "List the conditions and associated drug exposures for female patients over the age of 50."
+    output: >
+      [DB_ID] omop_cdm
+      [Schema]
+      # table: person
+      [
+      (person_id:INTEGER, unique identifier for each person, Primary Key, Examples: [1001, 2005]),
+      (gender_concept_id:INTEGER, concept ID for gender, Foreign Key, Examples: [8532, 8507]),
+      (year_of_birth:INTEGER, year the person was born, Examples: [1970, 1945])
+      ]
+
+      # table: condition_occurrence
+      [
+      (condition_occurrence_id:INTEGER, unique identifier for condition occurrence, Primary Key, Examples: [9001, 9012]),
+      (person_id:INTEGER, ID of the person with the condition, Foreign Key, Examples: [1001, 2005]),
+      (condition_concept_id:INTEGER, concept ID for the condition, Foreign Key, Examples: [201826, 320128]),
+      (condition_start_date:DATE, date when the condition began, Examples: [2018-01-01, 2020-06-15])
+      ]
+
+      # table: drug_exposure
+      [
+      (drug_exposure_id:INTEGER, unique identifier for drug exposure event, Primary Key, Examples: [3001, 3010]),
+      (person_id:INTEGER, ID of the person receiving the drug, Foreign Key, Examples: [1001, 2005]),
+      (drug_concept_id:INTEGER, concept ID for the administered drug, Foreign Key, Examples: [1125315, 907013]),
+      (drug_exposure_start_date:DATE, date drug treatment started, Examples: [2018-02-01, 2020-07-01])
+      ]
+
+      # table: concept
+      [
+      (concept_id:INTEGER, unique concept identifier, Primary Key, Examples: [8507, 8532, 1125315]),
+      (concept_name:TEXT, human-readable name of the concept, Examples: [FEMALE, MALE, Ibuprofen]),
+      (domain_id:TEXT, domain of the concept, Examples: [Gender, Drug, Condition])
+      ]
+
+      [Foreign keys]
+      person.gender_concept_id → concept.concept_id  
+      condition_occurrence.person_id → person.person_id  
+      condition_occurrence.condition_concept_id → concept.concept_id  
+      drug_exposure.person_id → person.person_id  
+      drug_exposure.drug_concept_id → concept.concept_id
 
 planning_task:
   description: >
-    Given a schema description and a natural language query {query}, plan the steps required to translate
+    Given a schema description and a natural language query:
+    "{query}"
+    
+    Plan the steps required to translate
     the query into SQL. Use the OMOP CDM Documentation RAG and Similar Examples Retriever to guide the plan.
   expected_input: >
     query: string
@@ -38,7 +109,8 @@ sql_generation_task:
 
 argument_substitution_task:
   description: >
-    Given a parameterized SQL query and a mapping of arguments, substitute the placeholders with actual values.
+    Given a parameterized SQL query and the following OMOP CDM concept_id mappings, complete the query.
+    {mapping}
   expected_input: >
     sql_template: string
     argument_mapping: dict
