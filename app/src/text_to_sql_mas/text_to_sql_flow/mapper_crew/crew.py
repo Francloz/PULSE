@@ -25,20 +25,21 @@ class MapperCrew():
     )
 
     @agent
-    def tagger_agent(self) -> Agent:
+    def abbreviation_solver_agent(self) -> Agent:
         return Agent(
-            config=self.agents_config['tagger_agent'],  # type: ignore[index]
+            config=self.agents_config['abbreviation_solver_agent'],  # type: ignore[index]
             verbose=True,
             llm=self.llm,
             tools=[SearchEngineTool()]
         )
 
     @agent
-    def mapper_agent(self) -> Agent:
+    def tagger_agent(self) -> Agent:
         return Agent(
-            config=self.agents_config['mapper_agent'],  # type: ignore[index]
+            config=self.agents_config['tagger_agent'],  # type: ignore[index]
             verbose=True,
-            tools=[LinkMentionsTool(), MDXSearchTool(mdx=path_to_omopcdm_doct,
+            llm=self.llm,
+            tools=[SearchEngineTool(), MDXSearchTool(mdx=path_to_omopcdm_doct,
                                      config=dict(
                                          llm= dict(
                                             provider="ollama",
@@ -54,11 +55,19 @@ class MapperCrew():
                                              ),
                                          ),
                                      )
-                                     )],
+                                     )]
+        )
+
+    @agent
+    def mapper_agent(self) -> Agent:
+        return Agent(
+            config=self.agents_config['mapper_agent'],  # type: ignore[index]
+            verbose=True,
+            tools=[LinkMentionsTool()],
             llm=self.llm,
         )
 
-    # @agent
+    @agent
     def validator_agent(self) -> Agent:
         return Agent(
             config=self.agents_config['validator_agent'],  # type: ignore[index]
@@ -66,13 +75,18 @@ class MapperCrew():
             llm=self.llm,
         )
 
-
     def boss(self) -> Agent:
         return Agent(
             config=self.agents_config['boss'],  # type: ignore[index]
             verbose=True,
             allow_delegation=True,
             llm=self.llm,
+        )
+
+    @task
+    def abbreviation_solver_task(self) -> Task:
+        return Task(
+            config=self.tasks_config['abbreviation_solver_task'],  # type: ignore[index]
         )
 
     @task
@@ -87,7 +101,7 @@ class MapperCrew():
             config=self.tasks_config['map_task'],  # type: ignore[index]
         )
 
-    # @task
+    @task
     def validate_task(self) -> Task:
         return Task(
             config=self.tasks_config['validate_task'],  # type: ignore[index]
@@ -96,11 +110,13 @@ class MapperCrew():
     @crew
     def crew(self) -> Crew:
         """Creates the MapperCrew for OMOP entity tagging and mapping"""
+
         return Crew(
             agents=self.agents,
             tasks=self.tasks,
             verbose=True,
-            manager_agent=self.boss(),
-            manager_llm=self.llm,
-            process=Process.hierarchical,  # You may use Process.hierarchical with boss as manager
+            process=Process.sequential,
+            # manager_agent=self.boss(),
+            # manager_llm=self.llm,
+            # process=Process.hierarchical,  # You may use Process.hierarchical with boss as manager
         )

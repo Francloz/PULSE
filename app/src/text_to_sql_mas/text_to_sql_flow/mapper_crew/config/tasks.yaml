@@ -1,6 +1,19 @@
+abbreviation_solver_task:
+  description: >
+    Given this query "{query}"
+    
+    Return the same query **expanding all abbreviations** such as (BP, SpO, BMI) to the complete string, such as
+    blood pressure or body mass index.
+  agent: abbreviation_solver_agent
+  expected_input: >
+    query: string
+  expected_output: >
+    query: string
+    
+
 tag_task:
   description: >
-    Given a free‐text query {query}, return the same sentence with each relevant entity wrapped in the appropriate 
+    Given a free‐text query return the same query with each relevant entity wrapped in the appropriate 
     tag having searched any unknown terms to be assured of proper classification. Entities to tag include the following:
 
     - <CONDITION>: Diagnoses, signs, or symptoms indicating the presence of a disease or medical condition.
@@ -9,12 +22,12 @@ tag_task:
     - <MEASUREMENT>: Structured data from clinical tests (e.g., lab tests, vital signs) with numerical or categorical results.
     - <VALUE>: Categorical results from measurements or observations, expressed as standardized concepts (e.g., Yes, No, Never).
     - <UNIT>: The unit associated with a numeric measurement (e.g., mg/dL, mmHg).
-    - <OBSERVATION>: Clinical or contextual facts such as medical history, lifestyle, or social circumstances noted during examination or procedures.
+    - <OBSERVATION>: Clinical or contextual facts such as medical history, pregnancy, lifestyle, or social circumstances noted during examination or procedures.
     - <DEVICE>: Information about physical medical devices (e.g., implants, monitors) used diagnostically or therapeutically.
     - <VISIT_TYPE>: Type of healthcare encounter (e.g., inpatient, outpatient, emergency room).
     - <GENDER>: The biological sex of the individual.
     - <RACE>: The racial or ethnic background of the individual.
-
+  agent: tagger_agent
   expected_input: >
     query: string
 
@@ -24,25 +37,34 @@ tag_task:
   
 
 map_task:
+  agent: mapper_agent
   description: >
     Given a tagged sentence (e.g., "Count of <GENDER>women</GENDER> with <CONDITION>cancer</CONDITION>"),
-    extract all tagged entities, and for each:
-      1. Identify tag category (e.g., GENDER, CONDITION).
+    extract all entities enclosed in XML-style tags.
+
+    For each tagged entity:
+      1. Extract the XML tag (e.g., GENDER, CONDITION).
       2. Extract the raw text inside the tag (e.g., “women”, “cancer”).
-      3. Map the entities to concept ids alternatives giving a list of pairs [(text, tag), ...].
-      4. Filter the alternatives to select the most appropriate one.
-    Return a JSON array where each element has:
-      - tag: the XML tag used (e.g., "GENDER")
-      - text: the exact substring that was tagged (e.g., "women")
-      - concept_id: integer from OMOP vocabulary
-      - concept_name: standardized name from OMOP vocabulary
-  expected_input: >
-    tagged_sentence: string
-  expected_output: |
+      3. Construct a list of **pairs** in the format [text, tag].
+      4. Pass this list to the LinkMentionsTool to retrieve OMOP concept mapping candidates.
+      5. Select the most appropriate concept for each entity (e.g., most relevant or highest-ranked).
+    
+    Only valid concepts from the OMOP vocabulary should be included in the final result.
+
+    Ignore tags like <VALUE> or any unrecognized tags if they cannot be meaningfully mapped to OMOP concepts.
+
+  expected_output: >
+    A JSON array where each object contains:
+      - tag: the original XML tag as a string (e.g., "GENDER")
+      - text: the exact substring inside the tag (e.g., "women")
+      - concept_id: the matched OMOP concept_id as an integer
+      - concept_name: the matched OMOP concept_name as a string
+
+    The output must exactly follow this structure:
     [
       {
         "tag": "GENDER",
-        "text": "women",
+        "text": "woman",
         "concept_id": 8532,
         "concept_name": "FEMALE"
       },
@@ -52,36 +74,29 @@ map_task:
         "concept_id": 4194405,
         "concept_name": "Cancer confirmed"
       }
+      ...
     ]
-    
+
     
 
 validate_task:
+  agent: validator_agent
   description: >
-    Given a tagged sentence and its JSON mapping array, verify that each tagged entity
-    has a corresponding entry in the mapping. If any tag is missing a mapping, list it.
-    Otherwise, confirm that all tags are mapped.
-  expected_input: >
-    tagged_sentence: string
-    mapping_array:
-      - tag: string
-        text: string
-        concept_id: integer
-        concept_name: string
+    Given the mapping, format the output to follow the expected format.
   expected_output: |
-    If every tag from the sentence appears in mapping_array:
+    A json that represents the the concept_id of each entity. It should follow exactly this format:
+    [
       {
-        "status": "complete",
-        "message": "All entities have been mapped."
-      }
-    If any tag is missing:
+        "tag": "GENDER",
+        "text": "woman",
+        "concept_id": 8532,
+        "concept_name": "FEMALE"
+      },
       {
-        "status": "incomplete",
-        "missing_mappings": [
-          {
-            "tag": "<TAG_NAME>",
-            "text": "<TAGGED_TEXT>"
-          },
-          ...
-        ]
-      }
+        "tag": "CONDITION",
+        "text": "cancer",
+        "concept_id": 4194405,
+        "concept_name": "Cancer confirmed"
+      },
+      ...
+    ]

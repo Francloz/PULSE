@@ -1,7 +1,8 @@
+import json
 import os
 import sys
 import traceback
-from typing import Type, Tuple
+from typing import Type, Tuple, Union
 from pydantic import BaseModel, Field
 from crewai.tools import BaseTool
 import requests
@@ -11,7 +12,7 @@ path_to_omopcdm_doct = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "knowledge", "OMOP_CDM_v5.4.md")
 
 class LinkMentionsInput(BaseModel):
-    mentions: list[Tuple[str, str]] = Field(
+    mentions: Union[list[Tuple[str, str]], list[str]] = Field(
         ...,
         description=(
             "List of biomedical mentions and their categories. "
@@ -28,8 +29,12 @@ class LinkMentionsTool(BaseTool):
     )
     args_schema: Type[BaseModel] = LinkMentionsInput
 
-    def _run(self, mentions: list[Tuple[str, str]]) -> str:
+    def _run(self, mentions: Union[list[Tuple[str, str]], list[str]]) -> str:
         try:
+            if all(isinstance(item, str) for item in mentions):
+                assert len(mentions) % 2 == 0, "Always give both the entity and the category."
+                mentions =  [(mentions[i], mentions[i + 1]) for i in range(0, len(mentions), 2)]
+
             mentions = {"mentions": [{"text": mention[0], "tag": mention[1]} for mention in mentions]}
             response = requests.post(
                 "http://localhost:5000/link",
@@ -37,7 +42,26 @@ class LinkMentionsTool(BaseTool):
                 timeout=10
             )
             response.raise_for_status()
-            return response.text
+
+            simplified = []
+            for item in response.json():
+                mention = item["mention"]
+                mappings = item["mappings"]
+
+                if not mappings:
+                    continue  # Skip if no mappings
+
+                top_mapping = mappings[0]  # Take only the first mapping
+
+                simplified.append({
+                    "text": mention["text"],
+                    "tag": mention["tag"],
+                    "concept_id": top_mapping["concept_id"],
+                    "concept_name": top_mapping["concept_name"],
+                    "concept_class": top_mapping["concept_class_id"]
+                })
+
+            return json.dumps(simplified, indent=4)
         except requests.RequestException as e:
             print(mentions, file=sys.stderr)
             traceback.print_exc()
@@ -49,14 +73,14 @@ from langchain_community.tools import DuckDuckGoSearchResults
 
 
 class SearchEngineToolInput(BaseModel):
-    query: str = Field(..., description="Query to find relevant results")
+    query: str = Field(..., description="Concept or term to define")
 
 class SearchEngineTool(BaseTool):
     name: str = "Search Engine"
-    description: str = "Search the web using a search engine."
+    description: str = "Define a concept using the search engine."
     args_schema : Type[BaseModel] = SearchEngineToolInput
 
     def _run(self, query: str) -> str:
-        search_engine = DuckDuckGoSearchResults()
-        response = search_engine.invoke(query)
+        search_engine = DuckDuckGoSearchResults(num_results=1)
+        response = search_engine.invoke(f"In medicine, what is {query}?")
         return response

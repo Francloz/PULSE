@@ -24,7 +24,7 @@ def run():
 
     try:
         result = MapperCrew().crew().kickoff(inputs=inputs)
-        print(result)
+        print(result.tasks_output)
     except Exception as e:
         raise Exception(f"An error occurred while running the crew: {e}")
 
