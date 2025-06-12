@@ -6,7 +6,7 @@ from crewai.agents.agent_builder.base_agent import BaseAgent
 from typing import List
 
 from config.vars import HF_KEY
-from tools import documentation_viewer
+from tools import OMOPCDMDocumentationViewer
 # If you want to run a snippet of code before or after the crew starts,
 # you can use the @before_kickoff and @after_kickoff decorators
 # https://docs.crewai.com/concepts/crews#example-crew-class-with-decorators
@@ -36,7 +36,7 @@ class ClarificationCrew():
         return Agent(
             config=self.agents_config['consultant'], # type: ignore[index]
             verbose=True,
-            tools=[documentation_viewer],
+            tools=[OMOPCDMDocumentationViewer()],
             llm=self.llm,
         )
 
@@ -45,7 +45,7 @@ class ClarificationCrew():
         return Agent(
             config=self.agents_config['consultant'], # type: ignore[index]
             verbose=True,
-            tools=[documentation_viewer],
+            tools=[OMOPCDMDocumentationViewer()],
             llm=self.llm
         )
 

@@ -1813,3 +1813,4 @@ NA
 | cohort\_definition\_syntax | Syntax or code to operationalize the Cohort Definition. |  | varchar(MAX) | No | No | No |  |  |
 | subject\_concept\_id | This field contains a Concept that represents the domain of the subjects that are members of the cohort (e.g., Person, Provider, Visit). |  | integer | Yes | No | Yes | CONCEPT |  |
 | cohort\_initiation\_date | A date to indicate when the Cohort was initiated in the COHORT table. |  | date | No | No | No |  |  |
+

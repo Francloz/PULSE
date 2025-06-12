@@ -15,14 +15,13 @@ tag_task:
   description: >
     Given a free‐text query return the same query with each relevant entity wrapped in the appropriate 
     tag having searched any unknown terms to be assured of proper classification. Entities to tag include the following:
-
     - <CONDITION>: Diagnoses, signs, or symptoms indicating the presence of a disease or medical condition.
+    - <MEASUREMENT>: Structured data from clinical tests (e.g., lab tests, vital signs) with numerical or categorical results.
+    - <OBSERVATION>: Clinical or contextual facts such as medical history, pregnancy, lifestyle, or social circumstances noted during examination or procedures. For example, pregnancy is typically an observation unless clinically diagnosed.
     - <DRUG>: Substances introduced into the body to treat or prevent a condition.
     - <PROCEDURE>: Clinical activities ordered or performed by healthcare providers for diagnosis or treatment.
-    - <MEASUREMENT>: Structured data from clinical tests (e.g., lab tests, vital signs) with numerical or categorical results.
     - <VALUE>: Categorical results from measurements or observations, expressed as standardized concepts (e.g., Yes, No, Never).
     - <UNIT>: The unit associated with a numeric measurement (e.g., mg/dL, mmHg).
-    - <OBSERVATION>: Clinical or contextual facts such as medical history, pregnancy, lifestyle, or social circumstances noted during examination or procedures.
     - <DEVICE>: Information about physical medical devices (e.g., implants, monitors) used diagnostically or therapeutically.
     - <VISIT_TYPE>: Type of healthcare encounter (e.g., inpatient, outpatient, emergency room).
     - <GENDER>: The biological sex of the individual.

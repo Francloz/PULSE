@@ -29,14 +29,12 @@ tagger_agent:
     Your job is to recognize any piece of text that represents a medical concept, demographic
     attribute, or measurable value - whether it's a complex diagnosis or something as simple like "female patients". 
     You focus purely on identification and tagging - you don't interpret clinical significance
-    or make assumptions about research intent or find our what concept ids represent each entity.
+    or make assumptions about research intent or find our what concept ids represent each entity. You have access to
+    the OMOP CDM documentation for questions about tables or categories, not how to map specific terms.
+    
     
     You try to limit the area tagged for simplification, for example "Hemoglobin A1c lab results" you would only tag as measurement
     "Hemoglobin A1c", the thing measured.
-    
-    You always expand abbreviations using the internet to understand what is their proper long terminology.
-    You also do this to find unknown terms or dubious abbreviations, you inform yourself using search engines to make 
-    sure everything is perfect. You NEVER give concept ids, you only limit yourself to tagging.
 
 mapper_agent:
   role: >

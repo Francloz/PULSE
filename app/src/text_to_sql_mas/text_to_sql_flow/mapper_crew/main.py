@@ -21,10 +21,10 @@ def run():
         # 'query': 'Count how many Hispanic male patients over the age of 50 were diagnosed with type 2 diabetes and underwent a coronary artery bypass graft procedure in the last five years?',
         'query': 'Identify pregnant women between ages 18-35 with gestational diabetes who delivered via cesarean section, had a birth weight measurement recorded for their newborn above the 90th percentile, received metformin therapy during pregnancy, and had at least two HbA1c lab results with values greater than 6.5% within 6 months prior to delivery, excluding patients with pre-existing type 1 or type 2 diabetes documented more than 12 months before conception.'
     }
-
     try:
         result = MapperCrew().crew().kickoff(inputs=inputs)
-        print(result.tasks_output)
+        outputs_list = [out.raw for out in result.tasks_output]
+        print(outputs_list)
     except Exception as e:
         raise Exception(f"An error occurred while running the crew: {e}")
 

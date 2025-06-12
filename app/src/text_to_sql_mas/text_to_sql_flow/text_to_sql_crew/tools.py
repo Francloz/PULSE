@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field
 from crewai.tools import BaseTool
 from config.config import OMOP_SYNTHETIC_DB_PARAMS
 
+
+
 class SchemaLinkingToolInput(BaseModel):
     tables_columns: Dict[str, list[str]] = Field(..., description="Dictionary that maps table names to column names")
 
@@ -79,23 +81,51 @@ class SchemaLinkingTool(BaseTool):
         cur.close()
         return schema_repr + fk_repr
 
-path_to_omopcdm_doct = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "knowledge", "OMOP_CDM_v5.4.md")
 # Initialize the tool with a specific MDX file path for an exclusive search within that document
+
+
+class OMOPCDMDocumentationViewer(MDXSearchTool):
+    def __init__(self, mdx=os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "knowledge", "OMOP_CDM_v5.4.md")):
+        super().__init__(
+            mdx=mdx,
+            config=dict(
+                llm=dict(
+                    provider="ollama",
+                    config=dict(
+                        model="mistral",
+                        # Optional parameters can be included here.
+                        # temperature=0.5,
+                        # top_p=1,
+                        # stream=True,
+                    ),
+                ),
+                embedder=dict(
+                    provider="huggingface",
+                    config=dict(
+                        model="BAAI/bge-large-en-v1.5",
+                        # Optional title for the embeddings can be added here.
+                        # title="Embeddings",
+                    ),
+                ),
+            )
+        )
+        self.name = "OMOP CDM Documentation Search"
+        self.description = "Searches inside the general OMOP CDM documentation using the argument search_query."
 
 
 class SimilarExamplesRetrieverToolInput(BaseModel):
     query: str = Field(..., description="The natural language query to find similar SQL examples")
 
 class SimilarExamplesRetrieverTool(BaseTool):
-    name: str = "(DOES NOT WORK) Similar Examples Retriever"
-    description: str = "(DOES NOT WORK) Retrieves top 3 similar SQL examples from a FAISS index."
+    name: str = "Similar Examples Retriever"
+    description: str = "Retrieves similar SQL examples from a FAISS index."
     args_schema: Type[BaseModel] = SimilarExamplesRetrieverToolInput
 
     def _run(self, query: str) -> str:
         try:
             response = requests.post(
-                "http://localhost:5001/sql_examples",
+                "http://localhost:5001/link",
                 json={"query": query},
                 timeout=10
             )
@@ -103,3 +133,9 @@ class SimilarExamplesRetrieverTool(BaseTool):
             return response.text
         except requests.RequestException as e:
             return f"API request failed: {e}"
+
+
+if __name__ == "__main__":
+    tool = SimilarExamplesRetrieverTool()
+
+    print(tool.run("Number of patients"))

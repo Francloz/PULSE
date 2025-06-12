@@ -5,7 +5,8 @@ from typing import List
 
 from crewai_tools.tools.mdx_seach_tool.mdx_search_tool import MDXSearchTool
 
-from tools import SchemaLinkingTool, SimilarExamplesRetrieverTool, path_to_omopcdm_doct
+from tools import SchemaLinkingTool, SimilarExamplesRetrieverTool, OMOPCDMDocumentationViewer
+
 
 @CrewBase
 class SQLPlannerCrew():
@@ -28,23 +29,7 @@ class SQLPlannerCrew():
             config=self.agents_config['schema_linker_agent'],  # type: ignore[index]
             verbose=True,
             tools=[# SchemaLinkingTool(),
-                   MDXSearchTool(mdx=path_to_omopcdm_doct,
-                                 config=dict(
-                                     llm=dict(
-                                         provider="ollama",
-                                         config=dict(
-                                             model="qwen3:30b-a3b",
-                                             base_url="http://localhost:11434"
-                                         )
-                                     ),
-                                     embedder=dict(
-                                         provider="huggingface",
-                                         config=dict(
-                                             model="BAAI/bge-large-en-v1.5",
-                                         ),
-                                     ),
-                                 )
-                                 )
+                    OMOPCDMDocumentationViewer()
                    ],
             llm=self.llm,
         )
@@ -54,23 +39,7 @@ class SQLPlannerCrew():
         return Agent(
             config=self.agents_config['sql_planner_agent'],  # type: ignore[index]
             verbose=True,
-            tools=[MDXSearchTool(mdx=path_to_omopcdm_doct,
-                                     config=dict(
-                                         llm= dict(
-                                            provider="ollama",
-                                            config=dict(
-                                                model="qwen3:30b-a3b",
-                                                base_url="http://localhost:11434"
-                                            )
-                                        ),
-                                         embedder=dict(
-                                             provider="huggingface",
-                                             config=dict(
-                                                 model="BAAI/bge-large-en-v1.5",
-                                             ),
-                                         ),
-                                     )
-                                     ),
+            tools=[OMOPCDMDocumentationViewer(),
                    SimilarExamplesRetrieverTool()],
             llm=self.llm,
         )
@@ -81,6 +50,7 @@ class SQLPlannerCrew():
             config=self.agents_config['sql_expert_agent'],  # type: ignore[index]
             verbose=True,
             llm=self.llm,
+            tools=[SimilarExamplesRetrieverTool()]
         )
 
     def boss_agent(self) -> Agent:

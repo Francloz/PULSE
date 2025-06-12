@@ -7,7 +7,8 @@ from typing import List
 
 from crewai_tools.tools.mdx_seach_tool.mdx_search_tool import MDXSearchTool
 
-from tools import LinkMentionsTool, SearchEngineTool, path_to_omopcdm_doct  # Only needed by mapper_agent
+from tools import LinkMentionsTool, path_to_omopcdm_doct, \
+    AbbreviationCSVSearchTool, SearchEngineTool, OMOPCDMDocumentationViewer  # Only needed by mapper_agent
 
 @CrewBase
 class MapperCrew():
@@ -30,7 +31,7 @@ class MapperCrew():
             config=self.agents_config['abbreviation_solver_agent'],  # type: ignore[index]
             verbose=True,
             llm=self.llm,
-            tools=[SearchEngineTool()]
+            tools=[AbbreviationCSVSearchTool()]
         )
 
     @agent
@@ -39,23 +40,7 @@ class MapperCrew():
             config=self.agents_config['tagger_agent'],  # type: ignore[index]
             verbose=True,
             llm=self.llm,
-            tools=[SearchEngineTool(), MDXSearchTool(mdx=path_to_omopcdm_doct,
-                                     config=dict(
-                                         llm= dict(
-                                            provider="ollama",
-                                            config=dict(
-                                                model="qwen3:30b-a3b",
-                                                base_url="http://localhost:11434"
-                                            )
-                                        ),
-                                         embedder=dict(
-                                             provider="huggingface",
-                                             config=dict(
-                                                 model="BAAI/bge-large-en-v1.5",
-                                             ),
-                                         ),
-                                     )
-                                     )]
+            tools=[OMOPCDMDocumentationViewer()]
         )
 
     @agent

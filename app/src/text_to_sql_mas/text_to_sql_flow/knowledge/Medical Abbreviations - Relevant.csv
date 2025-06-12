@@ -1,0 +1,114 @@
+Abbreviation,Expanded Term
+Demo,Socio-demographics
+Edu,Education level
+FS,Family setting
+WC,Work capacity
+Dx,Diagnoses
+Tx,Treatments
+Comorbid,Comorbidities
+Other,Other (e.g. Allergy)
+SES,Socioeconomic status
+LC,Living conditions
+U/R,Urban/rural
+DAMS,Distance to access medical services
+AN,Access to nature
+AP,Level of air pollution
+Traffic,Traffic
+Weather,Weather
+Wt,Weight
+Ht,Height
+WC,Waist circumference
+BMI,Body mass index
+BP,Blood pressure
+HR,Heart rate
+SpO2,Oxygen saturation
+RR,Respiratory rate
+BT,Body temperature
+HRV,Heart rate variability
+BC,Body composition (fat muscle hydric bone visceral mass)
+Smoking,Smoking
+ETOH/Drug,Alcohol and Drug consumption
+NH,Nutritional habits
+PAH,Physical activity habits
+PAFQ,Physical Activity Frequency Questionnaire
+Sleep,Sleep
+PSQI,Pittsburgh Sleep Quality Index
+PA/Ex,Physical activity habits and exercise
+IPAQ,International Physical Activity Questionnaire
+Med Adher,Adherence to medical therapy (self-reported)
+PA-W,Physical activity levels (from wearables)
+Steps-W,Step count (from wearables)
+PB,Preventive behaviors
+CAM,Use of complementary medicine
+WSC,Weight stability check
+Stress,Stress
+STRAIN,Stress and Adversity Inventory
+Anx/Dep,Anxiety and depression
+HAD,Hospital Anxiety and Depression scale
+ED,Eating disorders
+EDE-Q,Eating Disorder Examination Questionnaire
+QoL,Quality of Life
+SF-36,Short Form-36
+Motiv/Act,Motivation and activation
+PAM,Patient Activation Measure
+SE,Self-efficacy
+SEH,Self-Efficacy for Health
+Emot/WB,Emotions and well-being
+PANAS,Positive and Negative Affect Schedule
+PSS,Perceived Stress Scale
+MLWHFQ,Minnesota Living with Heart Failure Questionnaire
+WHOQOL-8,World Health Organization Quality of Life-8
+IOD,Impact of disease
+TC,Total cholesterol
+LDL,Low-density lipoprotein
+HDL,High-density lipoprotein
+TG,Triglycerides
+FG,Fasting glucose
+HbA1c,Hemoglobin A1c
+ECG,Electrocardiogram
+CRP,C-reactive protein
+AST,Aspartate aminotransferase
+ALT,Alanine aminotransferase
+GGT,Gamma-glutamyl transferase
+HF,Failure with/without valve disease
+Cr,Creatinine
+eGFR,Estimated glomerular filtration rate
+ACR,Albumin-Creatinine Ratio
+EKG,Electrocardiogram
+Nt-proBNP,N-terminal pro b-type natriuretic peptide
+DOE,Dyspnea
+Edema,Edema
+CH,Cardiac health
+HF,Heart failure
+BP-W,Blood pressure (from wearables)
+HR-W,Heart rate (from wearables)
+FFM,Fat-free mass
+FM,Fat mass
+HOMA-IR,Homeostatic Model Assessment for Insulin Resistance
+T2DM Guide,Guidelines for type 2 diabetes
+PG-cont,Plasma glucose (continuous)
+Chrono,Chronotype
+HB,Hydric balance
+Diuresis,Diuresis
+BP,Blood pressure
+VO2,Oxygen consumption
+RR,Respiratory rate
+PA,Physical activity
+Steps,Steps
+SL,Step length
+Dist,Distance
+Speed,Speed
+Elev,Elevation
+Cal,Calories
+BT,Body temperature
+HR,Heart rate
+Sleep D/P,Sleep duration/patterns
+DM,Disease management (diabetes/heart failure)
+AR,Available resources (social financial informational environmental)
+Tech Use,Use of technologies (e.g. smartphone wearable)
+Expect,Expectations
+Trust Tech,Trust in technology
+Privacy,Privacy concerns
+Intent Adopt,Intention to adopt
+Usage Int,Usage intentions
+Feat Pref,Feature preferences
